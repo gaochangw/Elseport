@@ -33,8 +33,10 @@
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_SHARED_CLIPBOARD
 #include <Carbon/Carbon.h>
+#include <ImageIO/ImageIO.h>
 
 #include <iprt/assert.h>
+#include <iprt/formats/bmp.h>
 #include <iprt/errcore.h>
 #include <iprt/mem.h>
 #include <iprt/string.h>
@@ -60,6 +62,10 @@
 *********************************************************************************************************************************/
 #define WITH_HTML_H2G 1
 #define WITH_HTML_G2H 1
+
+/** Upper limit for the size of a DIB rendered from an image in another format
+ * on the pasteboard.  This is enough for a little more than 8K x 8K. */
+#define DARWIN_PASTEBOARD_MAX_DIB_SIZE  _256M
 
 RT_GCC_NO_WARN_DEPRECATED_BEGIN /* Much here is deprecated since 12.0 */
 
@@ -454,6 +460,90 @@ DECLHIDDEN(int) readFileURLsFromPasteboard(PasteboardRef hPasteboard, char **pps
 #endif /* VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS */
 
 /**
+ * Renders an image found on the pasteboard in a format other than BMP into a DIB.
+ *
+ * Applications on macOS usually only offer PNG and TIFF.  The system translates those
+ * to BMP on request, but that comes with a V5 header and top-down rows, which
+ * ShClHlpDibToBmp refuses and which is no regular CF_DIB for Windows guests either.
+ *
+ * The content comes from the host and is decoded by the same system library any other
+ * application uses.  Transparency is flattened onto white as receivers ignore the alpha
+ * of a BI_RGB DIB.
+ *
+ * @returns VBox status code.
+ * @param   hImage              The encoded image.
+ * @param   ppvDib              Where to return the DIB.  Free using RTMemFree.
+ * @param   pcbDib              Where to return the size of the DIB.
+ */
+static int darwinPasteboardImageToDib(CFDataRef hImage, void **ppvDib, size_t *pcbDib)
+{
+    *ppvDib = NULL;
+    *pcbDib = 0;
+
+    int vrc = VERR_NOT_SUPPORTED;
+    CGImageSourceRef const hSource = CGImageSourceCreateWithData(hImage, NULL /*options*/);
+    if (hSource)
+    {
+        CGImageRef const hCgImage = CGImageSourceCreateImageAtIndex(hSource, 0 /*index*/, NULL /*options*/);
+        if (hCgImage)
+        {
+            size_t const   cx      = CGImageGetWidth(hCgImage);
+            size_t const   cy      = CGImageGetHeight(hCgImage);
+            uint64_t const cbTotal = sizeof(BMPWIN3XINFOHDR) + (uint64_t)cx * cy * 4;
+            if (cx > 0 && cy > 0 && cx < _1M && cy < _1M && cbTotal <= DARWIN_PASTEBOARD_MAX_DIB_SIZE)
+            {
+                uint8_t * const pbDib = (uint8_t *)RTMemAllocZ((size_t)cbTotal);
+                if (pbDib)
+                {
+                    BMPWIN3XINFOHDR * const pHdr = (BMPWIN3XINFOHDR *)pbDib;
+                    pHdr->cbSize         = sizeof(*pHdr);
+                    pHdr->uWidth         = (uint32_t)cx;
+                    pHdr->uHeight        = (uint32_t)cy; /* Positive, so the rows are stored bottom-up. */
+                    pHdr->cPlanes        = 1;
+                    pHdr->cBits          = 32;
+                    pHdr->enmCompression = BMP_COMPRESSION_TYPE_NONE;
+                    pHdr->cbSizeImage    = (uint32_t)(cx * cy * 4);
+
+                    CGColorSpaceRef const hColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+                    CGContextRef const    hContext    = CGBitmapContextCreate(pbDib + sizeof(*pHdr), cx, cy, 8 /*bitsPerComponent*/,
+                                                                              cx * 4, hColorSpace,
+                                                                              kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrder32Little);
+                    if (hContext)
+                    {
+                        CGRect const Rect = CGRectMake(0, 0, (CGFloat)cx, (CGFloat)cy);
+                        CGContextSetRGBFillColor(hContext, 1, 1, 1, 1);
+                        CGContextFillRect(hContext, Rect);
+                        /* The first row in the context's memory is its top row, whereas a DIB starts with the bottom one. */
+                        CGContextTranslateCTM(hContext, 0, (CGFloat)cy);
+                        CGContextScaleCTM(hContext, 1, -1);
+                        CGContextDrawImage(hContext, Rect, hCgImage);
+                        CGContextRelease(hContext);
+
+                        *ppvDib = pbDib;
+                        *pcbDib = (size_t)cbTotal;
+                        vrc = VINF_SUCCESS;
+                    }
+                    else
+                        RTMemFree(pbDib);
+                    CGColorSpaceRelease(hColorSpace);
+                }
+                else
+                    vrc = VERR_NO_MEMORY;
+            }
+            else
+            {
+                Log(("darwinPasteboardImageToDib: Refusing image of %zux%zu pixels\n", cx, cy));
+                vrc = VERR_TOO_MUCH_DATA;
+            }
+            CGImageRelease(hCgImage);
+        }
+        CFRelease(hSource);
+    }
+    return vrc;
+}
+
+
+/**
  * Read content from the host clipboard and write it to the internal clipboard
  * structure for further processing.
  *
@@ -622,9 +712,40 @@ DECLHIDDEN(int) readFromPasteboard(PasteboardRef pPasteboard, uint32_t fFormat, 
          */
         else if (fFormat & VBOX_SHCL_FMT_BITMAP)
         {
-            /* Get the BMP data from the pasteboard */
-            orc = PasteboardCopyItemFlavorData(pPasteboard, idItem, kUTTypeBMP, &hDataCopy);
-            if (orc == 0)
+            /* If the BMP is just the system's translation of something else, render that ourselves instead. */
+            PasteboardFlavorFlags fFlavorFlags = 0;
+            bool fRender =    PasteboardGetItemFlavorFlags(pPasteboard, idItem, kUTTypeBMP, &fFlavorFlags) == noErr
+                           && (fFlavorFlags & kPasteboardFlavorSystemTranslated);
+            if (fRender)
+            {
+                orc = PasteboardCopyItemFlavorData(pPasteboard, idItem, kUTTypePNG, &hDataCopy);
+                if (orc != 0)
+                    orc = PasteboardCopyItemFlavorData(pPasteboard, idItem, kUTTypeTIFF, &hDataCopy);
+                fRender = orc == 0;
+            }
+
+            /* Otherwise get the BMP data from the pasteboard */
+            if (!fRender)
+                orc = PasteboardCopyItemFlavorData(pPasteboard, idItem, kUTTypeBMP, &hDataCopy);
+
+            if (fRender)
+            {
+                void  *pvDib = NULL;
+                size_t cbDib = 0;
+                vrc = darwinPasteboardImageToDib(hDataCopy, &pvDib, &cbDib);
+                if (RT_SUCCESS(vrc))
+                {
+                    *pcbActual = (uint32_t)cbDib;
+                    if (cbDib <= cb)
+                        memcpy(pv, pvDib, cbDib);
+                    else
+                        Log(("readFromPasteboard: Insufficient (bitmap) buffer space: %#zx, need %#zx\n", cb, cbDib));
+                    RTMemFree(pvDib);
+                }
+                else
+                    Log(("readFromPasteboard: darwinPasteboardImageToDib failed - %Rrc\n", vrc));
+            }
+            else if (orc == 0)
             {
                 cbDataCopy = CFDataGetLength(hDataCopy);
                 Log(("Clipboard content is BMP (%zu bytes)\n", cbDataCopy));
@@ -819,6 +940,46 @@ DECLHIDDEN(int) clearPasteboard(PasteboardRef hPasteboard, void **phStrOwnership
 }
 
 /**
+ * Checks whether the pasteboard still holds what we put there.
+ *
+ * @returns true if our ownership flavor is still on the pasteboard, false if
+ *          another application has replaced the content since.
+ * @param   hPasteboard             The pasteboard handle.
+ * @param   idOwnership             Our ownership ID.
+ * @param   hStrOwnershipFlavor     The current ownership flavor string, NULL if
+ *                                  we don't hold the ownership.
+ */
+DECLHIDDEN(bool) isPasteboardOwner(PasteboardRef hPasteboard, uint64_t idOwnership, void *hStrOwnershipFlavor)
+{
+    if (!hStrOwnershipFlavor)
+        return false;
+
+    PasteboardSynchronize(hPasteboard);
+
+    bool fOwner = false;
+    ItemCount cItems = 0;
+    if (PasteboardGetItemCount(hPasteboard, &cItems) == noErr)
+        for (ItemCount idxItem = 0; idxItem < cItems && !fOwner; idxItem++)
+        {
+            PasteboardItemID idItem = 0;
+            if (   PasteboardGetItemIdentifier(hPasteboard, idxItem + 1, &idItem) != noErr
+                || idItem != (PasteboardItemID)idOwnership)
+                continue;
+
+            CFArrayRef hFlavors = NULL;
+            if (PasteboardCopyItemFlavors(hPasteboard, idItem, &hFlavors) == noErr && hFlavors)
+            {
+                CFIndex const cFlavors = CFArrayGetCount(hFlavors);
+                for (CFIndex idxFlavor = 0; idxFlavor < cFlavors && !fOwner; idxFlavor++)
+                    fOwner = CFStringCompare((CFStringRef)CFArrayGetValueAtIndex(hFlavors, idxFlavor),
+                                             (CFStringRef)hStrOwnershipFlavor, 0) == kCFCompareEqualTo;
+                CFRelease(hFlavors);
+            }
+        }
+    return fOwner;
+}
+
+/**
  * Write clipboard content to the host clipboard from the internal clipboard
  * structure.
  *
@@ -1006,5 +1167,85 @@ DECLHIDDEN(int) writeToPasteboard(PasteboardRef hPasteboard, uint64_t idOwnershi
     Log(("writeToPasteboard: vrc=%Rrc\n", vrc));
     return vrc;
 }
+
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+/** @copydoc writeFileURLsToPasteboard */
+DECLHIDDEN(int) writeFileURLsToPasteboard(PasteboardRef hPasteboard, uint64_t idOwnership,
+                                         void *hStrOwnershipFlavor, const char *pszRoots, size_t cbRoots)
+{
+    AssertPtrReturn(hPasteboard, VERR_INVALID_POINTER);
+    AssertPtrReturn(pszRoots, VERR_INVALID_POINTER);
+    int vrc = RTStrValidateEncodingEx(pszRoots, cbRoots,
+                                      RTSTR_VALIDATE_ENCODING_ZERO_TERMINATED | RTSTR_VALIDATE_ENCODING_EXACT_LENGTH);
+    if (RT_FAILURE(vrc))
+        return vrc;
+    CFMutableArrayRef hData = CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
+    if (!hData)
+        return VERR_NO_MEMORY;
+    const char *psz = pszRoots;
+    while (*psz && RT_SUCCESS(vrc))
+    {
+        const char *pszEnd = strstr(psz, "\r\n");
+        size_t const cch = pszEnd ? (size_t)(pszEnd - psz) : strlen(psz);
+        char *pszPath = RTStrDupN(psz, cch);
+        if (!pszPath)
+            vrc = VERR_NO_MEMORY;
+        else
+        {
+            RTFSOBJINFO Info;
+            if (!RTPathStartsWithRoot(pszPath) || strchr(pszPath, '\n') || strchr(pszPath, '\r'))
+                vrc = VERR_INVALID_NAME;
+            else
+                vrc = RTPathQueryInfoEx(pszPath, &Info, RTFSOBJATTRADD_NOTHING, RTPATH_F_ON_LINK);
+            if (RT_SUCCESS(vrc) && !RTFS_IS_FILE(Info.Attr.fMode) && !RTFS_IS_DIRECTORY(Info.Attr.fMode))
+                vrc = VERR_NOT_SUPPORTED;
+            if (RT_SUCCESS(vrc))
+            {
+                CFURLRef hUrl = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
+                                                                       (const UInt8 *)pszPath, cch,
+                                                                       RTFS_IS_DIRECTORY(Info.Attr.fMode));
+                if (hUrl)
+                {
+                    CFDataRef hUrlData = CFStringCreateExternalRepresentation(kCFAllocatorDefault, CFURLGetString(hUrl),
+                                                                              kCFStringEncodingUTF8, 0);
+                    if (hUrlData)
+                    {
+                        CFArrayAppendValue(hData, hUrlData);
+                        CFRelease(hUrlData);
+                    }
+                    else
+                        vrc = VERR_NO_MEMORY;
+                    CFRelease(hUrl);
+                }
+                else
+                    vrc = VERR_INVALID_NAME;
+            }
+            RTStrFree(pszPath);
+        }
+        psz += cch;
+        if (pszEnd)
+            psz += 2;
+        if (CFArrayGetCount(hData) > 16384)
+            vrc = VERR_TOO_MUCH_DATA;
+    }
+    if (RT_SUCCESS(vrc) && CFArrayGetCount(hData) == 0)
+        vrc = VERR_NO_DATA;
+    for (CFIndex i = 0; RT_SUCCESS(vrc) && i < CFArrayGetCount(hData); ++i)
+    {
+        if (!isPasteboardOwner(hPasteboard, idOwnership, hStrOwnershipFlavor))
+            vrc = VERR_CANCELLED;
+        else
+        {
+            OSStatus const orc = PasteboardPutItemFlavor(hPasteboard, (PasteboardItemID)(idOwnership + (uint64_t)i),
+                                                        kUTTypeFileURL, (CFDataRef)CFArrayGetValueAtIndex(hData, i),
+                                                        kPasteboardFlavorNoFlags);
+            if (orc != noErr)
+                vrc = VERR_GENERAL_FAILURE;
+        }
+    }
+    CFRelease(hData);
+    return vrc;
+}
+#endif
 
 RT_GCC_NO_WARN_DEPRECATED_END

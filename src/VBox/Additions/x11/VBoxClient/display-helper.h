@@ -94,6 +94,9 @@ typedef struct
      */
     DECLCALLBACKMEMBER(void, pfnUnsubscribeDisplayOffsetChangeNotification, (void));
 
+    /** Periodic, optional desktop integration work, on the session worker. */
+    DECLCALLBACKMEMBER(void, pfnPoll, (void));
+
 } VBCLDISPLAYHELPER;
 
 /**

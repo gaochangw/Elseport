@@ -407,4 +407,5 @@ const VBCLDISPLAYHELPER g_DisplayHelperGeneric =
     vbcl_hlp_generic_set_primary_display,                   /* .pfnSetPrimaryDisplay */
     vbcl_hlp_generic_subscribe_display_offset_changed,      /* .pfnSubscribeDisplayOffsetChangeNotification */
     vbcl_hlp_generic_unsubscribe_display_offset_changed,    /* .pfnUnsubscribeDisplayOffsetChangeNotification */
+    NULL,                                                  /* .pfnPoll */
 };

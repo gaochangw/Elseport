@@ -694,6 +694,11 @@
         <replaceable>vmname</replaceable> copyfrom</command> command
         enables you to copy a file from the guest VM to the host system.
       </para>
+      <para>
+        An existing destination file is replaced with the complete source
+        contents, including its length. Use <option>--no-replace</option> to
+        preserve an existing destination.
+      </para>
       <variablelist>
         <varlistentry>
           <term><option>--dereference</option></term>

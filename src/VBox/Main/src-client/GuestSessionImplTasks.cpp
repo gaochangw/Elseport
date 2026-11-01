@@ -683,7 +683,7 @@ int GuestSessionTask::fileCopyFromGuest(const Utf8Str &strSrc, const Utf8Str &st
 
         RTFILE hDstFile;
         vrc = RTFileOpen(&hDstFile, strDst.c_str(),
-                         RTFILE_O_WRITE | RTFILE_O_OPEN_CREATE | RTFILE_O_DENY_WRITE); /** @todo Use the correct open modes! */
+                         RTFILE_O_WRITE | RTFILE_O_OPEN_CREATE | RTFILE_O_TRUNCATE | RTFILE_O_DENY_WRITE);
         if (RT_SUCCESS(vrc))
         {
             LogFlowThisFunc(("Copying \"%s\" to \"%s\" (%RI64 bytes) ...\n",

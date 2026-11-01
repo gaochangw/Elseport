@@ -758,6 +758,8 @@ public:
 
         /** Returns the scale-factor. */
         double scaleFactor(const QUuid &uID, int iScreenIndex);
+        /** Returns whether a scale-factor has been selected for machine with passed @a uID. */
+        bool isScaleFactorSelected(const QUuid &uID);
         QList<double> scaleFactors(const QUuid &uID);
         /** Saves the @a dScaleFactor for the monitor with @a uScreenIndex. If the existing scale factor
           * list (from extra data) does not have scale factors for the screens with ids in [0, uScreenIndex)

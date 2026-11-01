@@ -1120,7 +1120,8 @@ if !defined(VBOX_ONLY_SDK) && !defined(VBOX_ONLY_EXTPACKS) # Note this goes on f
  VBoxC_LDFLAGS.darwin = \
  	-install_name $(VBOX_DYLD_EXECUTABLE_PATH)/components/VBoxC.dylib \
  	-exported_symbols_list $(VBoxC_0_OUTDIR)/VBoxC.def \
- 	-framework IOKit
+ 	-framework IOKit \
+ 	-framework ImageIO
  VBoxC_LDFLAGS.win += /MANIFEST \
  	/DELAYLOAD:user32.dll
 
@@ -1352,6 +1353,7 @@ if !defined(VBOX_ONLY_SDK) && !defined(VBOX_ONLY_EXTPACKS) # Note this goes on f
   	src-client/darwin/ClipboardBackendDarwin.cpp \
   	src-client/darwin/darwin-pasteboard.cpp
   ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+   VBoxC_SOURCES.darwin += $(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-file-cache-posix.cpp
    VBoxC_INCS     += $(PATH_ROOT)/src/VBox/HostServices/SharedClipboard
    ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS_HTTP
     VBoxC_DEFS    += VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS_HTTP

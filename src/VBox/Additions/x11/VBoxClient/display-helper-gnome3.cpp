@@ -43,6 +43,12 @@
 
 #include <VBox/log.h>
 #include <VBox/VBoxGuestLib.h>
+#ifdef VBOX_WITH_GUEST_PROPS
+# include <VBox/VBoxGuestLibGuestProp.h>
+# include <VBox/GuestHost/DisplayScale.h>
+# include <iprt/time.h>
+# include <iprt/ctype.h>
+#endif
 
 #include <iprt/env.h>
 #include <iprt/initterm.h>
@@ -301,12 +307,16 @@ static dbus_bool_t vbcl_hlp_gnome3_lookup_dict(DBusMessageIter *dict, const char
  * must be freed by calling function.
  *
  * @return  Mode name as a string if found, NULL otherwise.
- * @param   modes   List of monitor modes.
+ * @param   modes           List of monitor modes.
+ * @param   uScalePercent   Optional new desktop scale in percent.
+ * @param   dCurrentScale   Scale of the current logical monitor.
  */
-static char *vbcl_hlp_gnome3_lookup_monitor_current_mode(DBusMessageIter *modes)
+static char *vbcl_hlp_gnome3_lookup_monitor_current_mode(DBusMessageIter *modes,
+                                                       uint32_t uScalePercent = 0, double dCurrentScale = 1.0)
 {
     char            *szCurrentMode = NULL;
     DBusMessageIter modes_iter;
+    DBusMessageIter start;
 
     /* De-serialization parameters for 'modes': (siiddada{sv}). */
     char            *id = NULL;
@@ -319,6 +329,7 @@ static char *vbcl_hlp_gnome3_lookup_monitor_current_mode(DBusMessageIter *modes)
 
     if (!modes)
         return NULL;
+    start = *modes;
 
     if(!vbcl_hlp_gnome3_check_iter_signature(modes, "(siiddada{sv})"))
         return NULL;
@@ -351,6 +362,64 @@ static char *vbcl_hlp_gnome3_lookup_monitor_current_mode(DBusMessageIter *modes)
     }
     while (dbus_message_iter_next(modes));
 
+    if (!uScalePercent || !szCurrentMode)
+        return szCurrentMode;
+    if (dCurrentScale < 0.25 || dCurrentScale > 8.0 || width <= 0 || height <= 0)
+    {
+        free(szCurrentMode);
+        return NULL;
+    }
+
+    /* A small current mode may reject 200% because its logical desktop would
+     * be too small. Pick a mode that actually supports the requested scale,
+     * preserving the current logical size as closely as the mode list allows.
+     * The host's normal resize hint can refine the physical resolution later. */
+    double const dScale = (double)uScalePercent / 100.0;
+    double const dWidth = width * dScale / dCurrentScale;
+    double const dHeight = height * dScale / dCurrentScale;
+    free(szCurrentMode);
+    szCurrentMode = NULL;
+    double dBestDistance = 1.0e30;
+    *modes = start;
+    uint32_t cModes = 0;
+    do
+    {
+        if (++cModes > 1024)
+            break;
+        dbus_bool_t ret = true;
+        dbus_message_iter_recurse(modes, &modes_iter);
+        VBCL_HLP_GNOME3_NEXT(ret, vbcl_hlp_gnome3_iter_get_basic(&modes_iter, DBUS_TYPE_STRING, &id));
+        VBCL_HLP_GNOME3_NEXT(ret, vbcl_hlp_gnome3_iter_get_basic(&modes_iter, DBUS_TYPE_INT32, &width));
+        VBCL_HLP_GNOME3_NEXT(ret, vbcl_hlp_gnome3_iter_get_basic(&modes_iter, DBUS_TYPE_INT32, &height));
+        VBCL_HLP_GNOME3_NEXT(ret, vbcl_hlp_gnome3_iter_get_basic(&modes_iter, DBUS_TYPE_DOUBLE, &refresh_rate));
+        VBCL_HLP_GNOME3_NEXT(ret, vbcl_hlp_gnome3_iter_get_basic(&modes_iter, DBUS_TYPE_DOUBLE, &preferred_scale));
+        VBCL_HLP_GNOME3_NEXT(ret, vbcl_hlp_gnome3_iter_get_array(&modes_iter, &supported_scales));
+        if (!ret || width <= 0 || height <= 0 || width > 16384 || height > 16384)
+            continue;
+        bool fSupported = false;
+        uint32_t cScales = 0;
+        do
+        {
+            if (++cScales > 128 || dbus_message_iter_get_arg_type(&supported_scales) != DBUS_TYPE_DOUBLE)
+                break;
+            double dSupported = 0.0;
+            dbus_message_iter_get_basic(&supported_scales, &dSupported);
+            if (dSupported == dScale)
+                fSupported = true;
+        }
+        while (dbus_message_iter_next(&supported_scales));
+        double const dDistance = (width - dWidth) * (width - dWidth) + (height - dHeight) * (height - dHeight);
+        if (fSupported && dDistance < dBestDistance)
+        {
+            char *pszMode = strdup(id);
+            if (!pszMode)
+                break;
+            free(szCurrentMode);
+            szCurrentMode = pszMode;
+            dBestDistance = dDistance;
+        }
+    }
+    while (dbus_message_iter_next(modes));
     return szCurrentMode;
 }
 
@@ -492,12 +561,14 @@ static dbus_bool_t vbcl_hlp_gnome3_parse_logical_monitor_record(
  * @param   state                   Storage to put monitors state to.
  * @param   state_records_max       Size of state storage.
  * @param   cPhysicalMonitors       Actual number of physical displays parsed.
+ * @param   uScalePercent           Optional new desktop scale in percent.
+ * @param   dCurrentScale           Scale of the current logical monitor.
  */
 static dbus_bool_t vbcl_hlp_gnome3_get_physical_monitors_state(
     DBusMessageIter *physical_monitors_in,
     vbcl_hlp_gnome3_physical_display_state *state,
     uint32_t state_records_max,
-    uint32_t *cPhysicalMonitors)
+    uint32_t *cPhysicalMonitors, uint32_t uScalePercent = 0, double dCurrentScale = 1.0)
 {
     dbus_bool_t ret = true;
     uint32_t    iMonitor = 0;
@@ -518,6 +589,11 @@ static dbus_bool_t vbcl_hlp_gnome3_get_physical_monitors_state(
 
     do
     {
+        if (iMonitor >= state_records_max)
+        {
+            ret = false;
+            break;
+        }
         char            *connector                 = NULL;
         char            *vendor                    = NULL;
         char            *product                   = NULL;
@@ -532,7 +608,7 @@ static dbus_bool_t vbcl_hlp_gnome3_get_physical_monitors_state(
         if (iMonitor < state_records_max)
         {
             state[iMonitor].connector = connector;
-            state[iMonitor].mode = vbcl_hlp_gnome3_lookup_monitor_current_mode(&modes);
+            state[iMonitor].mode = vbcl_hlp_gnome3_lookup_monitor_current_mode(&modes, uScalePercent, dCurrentScale);
 
             /* Check if both parameters were discovered successfully. */
             VBCL_HLP_GNOME3_NEXT(ret, state[iMonitor].connector && state[iMonitor].mode);
@@ -632,7 +708,7 @@ static int vbcl_hlp_gnome3_convert_and_apply_display_settings(
     uint32_t serial,
     DBusMessageIter *physical_monitors_in,
     DBusMessageIter *logical_monitors_in,
-    uint32_t idPrimaryDisplay)
+    uint32_t idPrimaryDisplay, uint32_t uScalePercent, bool fQueryOnly)
 {
     int             rc = VERR_INVALID_PARAMETER;
     uint32_t        iLogicalMonitor = 0;
@@ -655,6 +731,39 @@ static int vbcl_hlp_gnome3_convert_and_apply_display_settings(
         || !logical_monitors_in)
     {
         return VERR_INVALID_PARAMETER;
+    }
+
+    RT_ZERO(physical_monitors_state);
+    double dCurrentScale = 1.0;
+    if (uScalePercent)
+    {
+        /* Opt in only for one physical and one logical monitor. Never rewrite
+         * a multi-monitor layout or infer a connector-to-logical mapping. */
+        DBusMessageIter logical = *logical_monitors_in;
+        DBusMessageIter next = logical;
+        DBusMessageIter physical = *physical_monitors_in;
+        uint32_t cPhysical = 0;
+        if (   !vbcl_hlp_gnome3_get_physical_monitors_state(&physical, physical_monitors_state,
+                                                          VBOX_DRMIPC_MONITORS_MAX, &cPhysical)
+            || cPhysical != 1 || dbus_message_iter_next(&next))
+        {
+            vbcl_hlp_gnome3_free_physical_monitors_state(physical_monitors_state, cPhysical);
+            return VERR_NOT_SUPPORTED;
+        }
+        int32_t x, y;
+        double scale;
+        uint32_t transform;
+        dbus_bool_t primary;
+        DBusMessageIter monitors, properties;
+        bool const fValid = vbcl_hlp_gnome3_parse_logical_monitor_record(
+            &logical, &x, &y, &scale, &transform, &primary, &monitors, &properties);
+        vbcl_hlp_gnome3_free_physical_monitors_state(physical_monitors_state, cPhysical);
+        RT_ZERO(physical_monitors_state);
+        if (!fValid)
+            return VERR_INVALID_PARAMETER;
+        dCurrentScale = scale;
+        if (fQueryOnly || scale == (double)uScalePercent / 100.0)
+            return VINF_SUCCESS;
     }
 
     /* Important for error handling code path when dbus_message_iter_abandon_container_if_open() is in place. */
@@ -681,7 +790,8 @@ static int vbcl_hlp_gnome3_convert_and_apply_display_settings(
 
     /* Get list of physical monitors parameters. */
     VBCL_HLP_GNOME3_NEXT(ret, vbcl_hlp_gnome3_get_physical_monitors_state(
-        physical_monitors_in, physical_monitors_state, VBOX_DRMIPC_MONITORS_MAX, &cPhysicalMonitors));
+        physical_monitors_in, physical_monitors_state, VBOX_DRMIPC_MONITORS_MAX, &cPhysicalMonitors,
+        uScalePercent, dCurrentScale));
 
     /* ( >u< u@a(iiduba(ssa{sv}))@a{sv}) of (uu@a(iiduba(ssa{sv}))@a{sv}). */
     VBCL_HLP_GNOME3_NEXT(ret, dbus_message_iter_append_basic(&message_iter, DBUS_TYPE_UINT32, &serial));
@@ -723,7 +833,9 @@ static int vbcl_hlp_gnome3_convert_and_apply_display_settings(
         if (ret)
         {
             /* Whether current display supposed to be set as primary. */
-            isPrimary = (iLogicalMonitor == idPrimaryDisplay);
+            isPrimary = idPrimaryDisplay == UINT32_MAX ? primary : (iLogicalMonitor == idPrimaryDisplay);
+            if (uScalePercent)
+                scale = (double)uScalePercent / 100.0;
 
             /* Compose part (uu@a( > iiduba(ssa{sv}) < )@a{sv}) of (uu@a(iiduba(ssa{sv}))@a{sv}). */
             VBCL_HLP_GNOME3_NEXT(ret, dbus_message_iter_open_container(&logical_monitors_out_iter, DBUS_TYPE_STRUCT, NULL, &sub_iter0));
@@ -788,7 +900,10 @@ static int vbcl_hlp_gnome3_convert_and_apply_display_settings(
         reply = dbus_connection_send_with_reply_and_block(connection, message, VBOXCLIENT_HELPER_DBUS_TIMEOUT_MS, &error);
         if (reply)
         {
-            VBClLogInfo("display %d has been set as primary\n", idPrimaryDisplay);
+            if (uScalePercent)
+                VBClLogInfo("desktop scale applied: %u%%\n", uScalePercent);
+            else
+                VBClLogInfo("display %d has been set as primary\n", idPrimaryDisplay);
             dbus_message_unref(reply);
             rc = VINF_SUCCESS;
         }
@@ -823,11 +938,14 @@ static int vbcl_hlp_gnome3_convert_and_apply_display_settings(
  *
  * @return  IPRT status code.
  * @param   connection          Handle to D-bus connection.
- * @param   idPrimaryDisplay    ID (number) of display which is requested to be set as primary.
+ * @param   idPrimaryDisplay    Display to make primary, or UINT32_MAX to preserve it.
+ * @param   uScalePercent       Zero to preserve scale, otherwise 100, 200 or 300.
+ * @param   fQueryOnly          Validate scale support without changing the desktop.
  * @param   reply               Reply message of GetCurrentState call.
  */
 static int vbcl_hlp_gnome3_process_current_display_layout(
-    DBusConnection *connection, uint32_t idPrimaryDisplay, DBusMessage *reply)
+    DBusConnection *connection, uint32_t idPrimaryDisplay, DBusMessage *reply,
+    uint32_t uScalePercent, bool fQueryOnly)
 {
     static const char *expected_signature = "ua((ssss)a(siiddada{sv})a{sv})a(iiduba(ssss)a{sv})a{sv}";
 
@@ -870,7 +988,7 @@ static int vbcl_hlp_gnome3_process_current_display_layout(
         if (ret && !dbus_message_iter_has_next(&iter))
         {
             rc = vbcl_hlp_gnome3_convert_and_apply_display_settings(
-                connection, serial, &monitors, &logical_monitors_in, idPrimaryDisplay);
+                connection, serial, &monitors, &logical_monitors_in, idPrimaryDisplay, uScalePercent, fQueryOnly);
         }
         else
         {
@@ -891,12 +1009,14 @@ static int vbcl_hlp_gnome3_process_current_display_layout(
  * This function establishes D-bus connection, requests gnome-settings-daemon
  * to provide current display configuration via GetCurrentState interface call
  * and passes this information further to helper functions in order to set
- * requested display as primary.
+ * requested display as primary, or apply a supported desktop scale.
  *
  * @return  IPRT status code.
- * @param   idPrimaryDisplay    A display ID which is requested to be set as primary.
+ * @param   idPrimaryDisplay    Display to make primary, or UINT32_MAX to preserve it.
+ * @param   uScalePercent       Zero to preserve scale, otherwise 100, 200 or 300.
+ * @param   fQueryOnly          Validate scale support without changing the desktop.
  */
-static DECLCALLBACK(int) vbcl_hlp_gnome3_set_primary_display(uint32_t idPrimaryDisplay)
+static int vbcl_hlp_gnome3_update_display(uint32_t idPrimaryDisplay, uint32_t uScalePercent, bool fQueryOnly)
 {
     int rc = VERR_GENERAL_FAILURE;
 
@@ -928,7 +1048,7 @@ static DECLCALLBACK(int) vbcl_hlp_gnome3_set_primary_display(uint32_t idPrimaryD
             reply = dbus_connection_send_with_reply_and_block(connection, message, VBOXCLIENT_HELPER_DBUS_TIMEOUT_MS, &error);
             if (!dbus_error_is_set(&error))
             {
-                rc = vbcl_hlp_gnome3_process_current_display_layout(connection, idPrimaryDisplay, reply);
+                rc = vbcl_hlp_gnome3_process_current_display_layout(connection, idPrimaryDisplay, reply, uScalePercent, fQueryOnly);
                 dbus_message_unref(reply);
             }
             else
@@ -947,6 +1067,7 @@ static DECLCALLBACK(int) vbcl_hlp_gnome3_set_primary_display(uint32_t idPrimaryD
         }
 
         dbus_connection_flush(connection);
+        dbus_connection_unref(connection);
     }
     else
     {
@@ -956,6 +1077,90 @@ static DECLCALLBACK(int) vbcl_hlp_gnome3_set_primary_display(uint32_t idPrimaryD
     }
 
     return rc;
+}
+
+/** @interface_method_impl{VBCLDISPLAYHELPER,pfnSetPrimaryDisplay} */
+static DECLCALLBACK(int) vbcl_hlp_gnome3_set_primary_display(uint32_t idPrimaryDisplay)
+{
+    return vbcl_hlp_gnome3_update_display(idPrimaryDisplay, 0, false);
+}
+
+#ifdef VBOX_WITH_GUEST_PROPS
+/** Guest property connection, owned by the display session. */
+static VBGLGSTPROPCLIENT g_ScaleClient;
+/** Whether the property service is connected. */
+static bool g_fScaleConnected = false;
+/** Whether this session currently advertises automatic scale support. */
+static bool g_fScaleAdvertised = false;
+/** Last successfully applied request. Tokens prevent accepting stale acknowledgements. */
+static char g_szScaleApplied[128];
+/** Next scale synchronization time. */
+static uint64_t g_msScaleNextPoll = 0;
+
+/** Withdraw capability and acknowledgement when a desktop no longer qualifies. */
+static void vbcl_hlp_gnome3_clear_scale(void)
+{
+    if (g_fScaleAdvertised)
+    {
+        VbglGuestPropDelete(&g_ScaleClient, VBOX_DISPLAY_SCALE_CAPABILITY);
+        VbglGuestPropDelete(&g_ScaleClient, VBOX_DISPLAY_SCALE_APPLIED);
+        g_fScaleAdvertised = false;
+    }
+    g_szScaleApplied[0] = '\0';
+}
+#endif
+
+/** @interface_method_impl{VBCLDISPLAYHELPER,pfnPoll} */
+static DECLCALLBACK(void) vbcl_hlp_gnome3_poll(void)
+{
+#ifdef VBOX_WITH_GUEST_PROPS
+    uint64_t const msNow = RTTimeMilliTS();
+    if (msNow < g_msScaleNextPoll)
+        return;
+    g_msScaleNextPoll = msNow + 2000;
+    if (!g_fScaleConnected)
+        g_fScaleConnected = RT_SUCCESS(VbglGuestPropConnect(&g_ScaleClient));
+    if (!g_fScaleConnected)
+        return;
+
+    /* GNOME's display service, not the host, establishes support. */
+    if (   (   VBClGetDisplayServerType() != VBGHDISPLAYSERVERTYPE_PURE_WAYLAND
+            && VBClGetDisplayServerType() != VBGHDISPLAYSERVERTYPE_XWAYLAND)
+        || RT_FAILURE(vbcl_hlp_gnome3_update_display(UINT32_MAX, 100, true)))
+    {
+        vbcl_hlp_gnome3_clear_scale();
+        return;
+    }
+    if (!g_fScaleAdvertised)
+        g_fScaleAdvertised = RT_SUCCESS(VbglGuestPropWrite(&g_ScaleClient, VBOX_DISPLAY_SCALE_CAPABILITY,
+                                                        VBOX_DISPLAY_SCALE_GNOME_SINGLE, "TRANSIENT,RDONLYHOST"));
+    if (!g_fScaleAdvertised)
+        return;
+    char szRequest[sizeof(g_szScaleApplied)];
+    int rc = VbglGuestPropReadValue(&g_ScaleClient, VBOX_DISPLAY_SCALE_REQUEST, szRequest, sizeof(szRequest), NULL);
+    if (RT_FAILURE(rc) || !strcmp(szRequest, g_szScaleApplied))
+        return;
+    /* Strict bounded grammar: a scale from this version and a UUID-sized token. */
+    if (   strlen(szRequest) != 40 || szRequest[3] != ':'
+        || (strncmp(szRequest, "100:", 4) && strncmp(szRequest, "200:", 4) && strncmp(szRequest, "300:", 4)))
+        return;
+    for (size_t i = 4; i < 40; ++i)
+        if (!RT_C_IS_XDIGIT(szRequest[i]) && szRequest[i] != '-')
+            return;
+    uint32_t const uPercent = (uint32_t)(szRequest[0] - '0') * 100;
+    rc = vbcl_hlp_gnome3_update_display(UINT32_MAX, uPercent, false);
+    if (RT_SUCCESS(rc))
+    {
+        rc = VbglGuestPropWrite(&g_ScaleClient, VBOX_DISPLAY_SCALE_APPLIED, szRequest, "TRANSIENT,RDONLYHOST");
+        if (RT_SUCCESS(rc))
+            RTStrCopy(g_szScaleApplied, sizeof(g_szScaleApplied), szRequest);
+    }
+    else
+    {
+        vbcl_hlp_gnome3_clear_scale();
+        g_msScaleNextPoll = msNow + 10000;
+    }
+#endif
 }
 
 /**
@@ -995,6 +1200,14 @@ static DECLCALLBACK(int) vbcl_hlp_gnome3_init(void)
  */
 static DECLCALLBACK(int) vbcl_hlp_gnome3_term(void)
 {
+#ifdef VBOX_WITH_GUEST_PROPS
+    if (g_fScaleConnected)
+    {
+        vbcl_hlp_gnome3_clear_scale();
+        VbglGuestPropDisconnect(&g_ScaleClient);
+        g_fScaleConnected = false;
+    }
+#endif
     int rc;
 
     if (VBClGetDisplayServerType() == VBGHDISPLAYSERVERTYPE_X11)
@@ -1016,4 +1229,5 @@ const VBCLDISPLAYHELPER g_DisplayHelperGnome3 =
     vbcl_hlp_gnome3_set_primary_display,                    /* .pfnSetPrimaryDisplay */
     vbcl_hlp_generic_subscribe_display_offset_changed,      /* .pfnSubscribeDisplayOffsetChangeNotification */
     vbcl_hlp_generic_unsubscribe_display_offset_changed,    /* .pfnUnsubscribeDisplayOffsetChangeNotification */
+    vbcl_hlp_gnome3_poll,                                   /* .pfnPoll */
 };

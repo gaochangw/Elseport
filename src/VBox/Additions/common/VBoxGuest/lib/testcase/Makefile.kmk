@@ -46,6 +46,13 @@ if defined(VBOX_WITH_TESTCASES) && !defined(VBOX_ONLY_BUILD)
  tstVbglR0PhysHeap-1_SOURCES = \
  	tstVbglR0PhysHeap-1.cpp
 
+ ifdef VBOX_WITH_GUEST_CONTROL
+  PROGRAMS += tstGuestCtrlPeek
+  tstGuestCtrlPeek_TEMPLATE = VBoxR3TstExe
+  tstGuestCtrlPeek_DEFS = IN_VBGL VBOX_WITH_HGCM VBOX_WITH_GUEST_CONTROL
+  tstGuestCtrlPeek_SOURCES = tstGuestCtrlPeek.cpp
+ endif
+
 
 endif # defined(VBOX_WITH_TESTCASES) && !defined(VBOX_ONLY_BUILD)
 include $(FILE_KBUILD_SUB_FOOTER)

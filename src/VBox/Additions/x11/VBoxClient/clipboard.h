@@ -75,6 +75,8 @@ struct SHCLCONTEXT
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS_HTTP
     /** Guest-side asynchronous X11 HTTP file-transfer state. */
     SHCLX11TRANSFERSTATE X11TransferState;
+    /** Local X11 selection changes, also observed while receiving a snapshot. */
+    volatile uint64_t    uX11LocalGeneration;
 #endif
     union
     {

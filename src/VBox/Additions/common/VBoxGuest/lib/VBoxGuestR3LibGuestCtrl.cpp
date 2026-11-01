@@ -288,8 +288,11 @@ DECL_NO_INLINE(static, bool) vbglR3GuestCtrlDetectPeekGetCancelSupport(uint32_t 
         && PeekCall.idMsg.u.value32 != 0
         && PeekCall.cParams.u.value32 <= VMMDEV_MAX_HGCM_PARMS)
     {
+        /* A supported host fills the requested parameter sizes and clears unused
+         * slots even when a message is already queued.  Unchanged sentinels, not
+         * changed sizes, indicate that an old host ignored the peek request. */
         for (uint32_t i = 0; i < RT_ELEMENTS(PeekCall.acbParams); i++)
-            if (PeekCall.acbParams[i].u.value32 != (i | cbDummyMask))
+            if (PeekCall.acbParams[i].u.value32 == (i | cbDummyMask))
             {
                 g_fVbglR3GuestCtrlHavePeekGetCancel = 0;
                 LogRel(("vbglR3GuestCtrlDetectPeekGetCancelSupport: Not supported (#1)\n"));

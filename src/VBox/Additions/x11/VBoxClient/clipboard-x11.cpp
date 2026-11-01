@@ -45,6 +45,8 @@
 #include <VBox/GuestHost/SharedClipboard-x11.h>
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS_HTTP
 # include <VBox/GuestHost/clipboard-transfers-http.h>
+# include <VBox/GuestHost/ClipboardFileCache.h>
+# include <iprt/uri.h>
 #endif
 
 #include "VBoxClient.h"
@@ -339,6 +341,25 @@ static DECLCALLBACK(int) vbclX11OnTransferInitializeCallback(PSHCLTRANSFERCALLBA
     return rc;
 }
 
+/** Snapshot identity captured before blocking file I/O. */
+struct VBCLX11FILECOPY
+{
+    /** Clipboard client. */
+    PSHCLCONTEXT pCtx;
+    /** Transfer being received on this worker. */
+    PSHCLTRANSFER pTransfer;
+    /** Local selection generation at the start of the copy. */
+    uint64_t uGeneration;
+};
+
+/** Stop when a local copy supersedes the offer or the transfer is retired. */
+static DECLCALLBACK(bool) vbclX11FileCopyCanceled(void *pvUser)
+{
+    VBCLX11FILECOPY *pCopy = (VBCLX11FILECOPY *)pvUser;
+    return    ASMAtomicReadU64(&pCopy->pCtx->uX11LocalGeneration) != pCopy->uGeneration
+           || ShClTransferStatusIsTerminal(ShClTransferGetStatus(pCopy->pTransfer));
+}
+
 /**
  * @copydoc SHCLTRANSFERCALLBACKS::pfnOnInitialized
  *
@@ -372,28 +393,51 @@ static DECLCALLBACK(int) vbclX11OnTransferInitializedCallback(PSHCLTRANSFERCALLB
             return VINF_SUCCESS;
         }
 
-        /* The remote provider rejects root-list reads until ShClTransferInit()
-         * has changed the transfer state to INITIALIZED.  Registering the HTTP
-         * transfer from pfnOnInitialize therefore races ahead of that state
-         * transition and leaves URI-list conversion waiting forever. */
-        rc = ShClTransferHttpServerMaybeStart(&pCtx->X11.HttpCtx);
+        VBCLX11FILECOPY Copy = { pCtx, pTransfer, ASMAtomicReadU64(&pCtx->uX11LocalGeneration) };
+        /* Resolve the complete transfer on the clipboard worker, before
+         * announcing URI targets. Native file URLs let desktop file managers
+         * copy directory trees as well as files; HTTP URI targets cannot
+         * represent a directory copy. Nothing waits in an X11 selection callback. */
+        rc = ShClTransferRootListRead(pTransfer);
+        char szCache[RTPATH_MAX];
         if (RT_SUCCESS(rc))
-            rc = ShClTransferRootListRead(pTransfer);
+            rc = RTPathUserHome(szCache, sizeof(szCache));
+        if (RT_SUCCESS(rc))
+            rc = RTPathAppend(szCache, sizeof(szCache), ".vbox-clipboard");
+        char *pszDirectory = NULL;
+        char *pszRoots = NULL;
+        size_t cbRoots = 0;
+        if (RT_SUCCESS(rc))
+            rc = shClFileCacheReceive(pTransfer, szCache, _1G, vbclX11FileCopyCanceled, &Copy,
+                                      &pszDirectory, &pszRoots, &cbRoots);
+        char *pszUriList = NULL;
+        size_t cbUriList = 0;
         if (RT_SUCCESS(rc))
         {
-            if (ShClTransferRootsCount(pTransfer))
-                rc = ShClTransferHttpServerRegisterTransfer(&pCtx->X11.HttpCtx.HttpServer, pTransfer);
-            else
-                rc = VERR_SHCLPB_NO_DATA;
+            char *pszSaved = NULL;
+            for (char *pszPath = strtok_r(pszRoots, "\r\n", &pszSaved); pszPath;
+                 pszPath = strtok_r(NULL, "\r\n", &pszSaved))
+            {
+                char *pszUri = RTUriFileCreate(pszPath);
+                char *pszNew = NULL;
+                if (!pszUri || RTStrAPrintf(&pszNew, "%s%s\r\n", pszUriList ? pszUriList : "", pszUri) < 0)
+                    rc = VERR_NO_MEMORY;
+                RTStrFree(pszUri);
+                RTStrFree(pszUriList);
+                pszUriList = pszNew;
+                if (RT_FAILURE(rc))
+                    break;
+            }
+            if (RT_SUCCESS(rc))
+                cbUriList = pszUriList ? strlen(pszUriList) + 1 : 0;
         }
-
-        char  *pszUriList = NULL;
-        size_t cbUriList  = 0;
-        if (RT_SUCCESS(rc))
-            rc = ShClTransferHttpConvertToStringList(&pCtx->X11.HttpCtx.HttpServer, pTransfer,
-                                                     &pszUriList, &cbUriList);
-
+        if (RT_SUCCESS(rc) && vbclX11FileCopyCanceled(&Copy))
+            rc = VERR_CANCELLED;
         rc = vbclX11TransferStateComplete(pCtx, pTransfer, pszUriList, cbUriList, rc);
+        if (pszDirectory && !vbclX11TransferPublishedMatches(pCtx, pTransfer))
+            shClFileCacheDiscard(pszDirectory);
+        RTStrFree(pszDirectory);
+        RTStrFree(pszRoots);
         RTStrFree(pszUriList);
     }
 
@@ -586,6 +630,9 @@ static DECLCALLBACK(int) vbclX11OnRequestDataFromSourceCallback(PSHCLCONTEXT pCt
 static DECLCALLBACK(int) vbclX11ReportFormatsCallback(PSHCLCONTEXT pCtx, uint32_t fFormats, void *pvUser)
 {
     RT_NOREF(pvUser);
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS_HTTP
+    ASMAtomicIncU64(&pCtx->uX11LocalGeneration);
+#endif
 
     LogFlowFunc(("fFormats=%#x\n", fFormats));
 

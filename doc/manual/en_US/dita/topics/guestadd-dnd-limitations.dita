@@ -4,6 +4,10 @@
   <title>Drag Limitations</title>
   
   <body>
+    <p>Guest-to-host drag and drop on macOS hosts is experimental and supports
+      copying only. File contents are transferred before the native drag starts,
+      so preparing a large selection can take time. Move and Link actions are
+      not offered. File-manager integration still requires end-to-end validation.</p>
     <dl>
       <dlentry>
         <dt>Details</dt>

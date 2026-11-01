@@ -22,7 +22,14 @@
       </li>
       <li><b>Enable Clipboard File Transfers</b>. Allows files (in addition to text, images and html) to be copied to or from the VM. <ul>
           <li>
-            <p>On Linux hosts and guests, Shared Clipboard file transfers are limited to files only, one file per transfer. Transferring symbolic links is not supported.</p>
+            <p>On macOS hosts and Linux X11 guests with the current Guest Additions,
+              received files and directories are copied into a private local cache
+              before being offered to applications. Multiple files, nested directories,
+              and empty files are supported. Symbolic links and special files are not supported.</p>
+            <p>A received copy is limited to 1 GiB, 16,384 entries and 64 directory levels.
+              The cache is limited to 8 GiB. Completed copies remain available after
+              the VM stops. See the development integration notes for cache locations
+              and cleanup. Other guest desktop backends may have different limitations.</p>
           </li>
           <li>
             <p>Shared Clipboard file transfers are only tested and supported with the official default file managers of the guest and host operating systems.</p>

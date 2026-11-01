@@ -38,12 +38,18 @@
 #include <iprt/assert.h>
 #include <iprt/asm.h>
 #include <iprt/critsect.h>
+#include <iprt/env.h>
+#include <iprt/mem.h>
+#include <iprt/path.h>
 #include <iprt/process.h>
 #include <iprt/rand.h>
 #include <iprt/string.h>
 #include <iprt/thread.h>
 
 #include "darwin-pasteboard.h"
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+# include <VBox/GuestHost/ClipboardFileCache.h>
+#endif
 
 
 /*********************************************************************************************************************************
@@ -62,6 +68,11 @@ typedef struct SHCLCONTEXT
     GuestShClConn          *pConn;
     /** Whether @a pConn may be used by the pasteboard poller. */
     bool                    fClientReady;
+    /** Number of polls left for looking again at a pasteboard which had nothing
+     * usable on it after it changed, see SHCL_DARWIN_RECHECK_POLLS. */
+    uint32_t                cRecheckPolls;
+    /** Ownership probes can consume Carbon's modified bit; force the next poll in that case. */
+    bool volatile           fForceSync;
     /** Random 64-bit number embedded into szGuestOwnershipFlavor. */
     uint64_t                idGuestOwnership;
     /** Ownership flavor CFStringRef returned by takePasteboardOwnership().
@@ -73,7 +84,27 @@ typedef struct SHCLCONTEXT
     RTCRITSECT              CritSectPasteboard;
     /** Serialize the client pointer and its readiness state. */
     RTCRITSECT              CritSect;
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    /** Worker which receives complete file snapshots outside pasteboard callbacks. */
+    RTTHREAD                hFileThread;
+    /** Wakes the file worker for a new offer or shutdown. */
+    RTSEMEVENT              hFileEvent;
+    /** Invalidate previous work whenever either endpoint replaces the clipboard. */
+    uint64_t                uFileGeneration;
+    /** Current guest formats; only the worker consumes file offers. */
+    SHCLFORMATS             fFileFormats;
+    /** Stop before the connection or pasteboard is released. */
+    bool                    fFileStopping;
+#endif
 } SHCLCONTEXT;
+
+
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
+/** How many polls to look again at a changed pasteboard with nothing usable on
+ * it, about three seconds. */
+#define SHCL_DARWIN_RECHECK_POLLS   15
 
 
 /*********************************************************************************************************************************
@@ -82,8 +113,211 @@ typedef struct SHCLCONTEXT
 /** Only one client is supported. There seems to be no need for more clients. */
 static SHCLCONTEXT g_ctx;
 
+/** Ownership checks must not hide a concurrent host copy from the poller. */
+static bool shClDarwinIsPasteboardOwner(PSHCLCONTEXT pCtx, uint64_t idOwnership)
+{
+    bool const fOwner = isPasteboardOwner(pCtx->hPasteboard, idOwnership, pCtx->hStrOwnershipFlavor);
+    if (!fOwner)
+        ASMAtomicWriteBool(&pCtx->fForceSync, true);
+    return fOwner;
+}
+
 
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+static void shClBackendDarwinTransferGetCallbacks(PSHCLCONTEXT pCtx, PSHCLTRANSFERCALLBACKS pCallbacks);
+
+/** Identity of one background file offer. */
+struct SHCLDARWINFILEWORK
+{
+    PSHCLCONTEXT pCtx;
+    uint64_t uGeneration;
+    uint64_t idOwnership;
+};
+
+/** Cancellation includes user replacements of the host clipboard. */
+static DECLCALLBACK(bool) shClDarwinFileCanceled(void *pvUser)
+{
+    SHCLDARWINFILEWORK *pWork = (SHCLDARWINFILEWORK *)pvUser;
+    PSHCLCONTEXT pCtx = pWork->pCtx;
+    RTCritSectEnter(&pCtx->CritSect);
+    bool fCanceled = pCtx->fFileStopping || !pCtx->fClientReady
+                   || pCtx->uFileGeneration != pWork->uGeneration;
+    if (!fCanceled)
+    {
+        RTCritSectEnter(&pCtx->CritSectPasteboard);
+        fCanceled = pCtx->idGuestOwnership != pWork->idOwnership
+                 || !shClDarwinIsPasteboardOwner(pCtx, pWork->idOwnership);
+        RTCritSectLeave(&pCtx->CritSectPasteboard);
+    }
+    RTCritSectLeave(&pCtx->CritSect);
+    return fCanceled;
+}
+
+/** Prepares and publishes file URLs only after a complete, current transfer. */
+static int shClDarwinFileReceive(PSHCLCONTEXT pCtx, SHCLDARWINFILEWORK *pWork)
+{
+    GuestShClConn *pConn = pCtx->pConn; /* Disconnect joins this worker before clearing pConn. */
+    void *pvOffer = NULL;
+    uint32_t cbOffer = 0;
+    int vrc = pConn->readDataFromGuest(VBOX_SHCL_FMT_URI_LIST, &pvOffer, &cbOffer);
+    RTMemFree(pvOffer);
+    /* Windows announces file descriptors without a raw URI-list payload. The
+     * transfer provider, rather than this optional data reply, supplies roots. */
+    if (vrc == VERR_SHCLPB_NO_DATA || vrc == VERR_NOT_SUPPORTED)
+        vrc = VINF_SUCCESS;
+    if (RT_SUCCESS(vrc) && shClDarwinFileCanceled(pWork))
+        vrc = VERR_CANCELLED;
+    PSHCLTRANSFER pTransfer = NULL;
+    SHCLTRANSFERID idTransfer = NIL_SHCLTRANSFERID;
+    if (RT_SUCCESS(vrc))
+    {
+        SHCLTRANSFERCALLBACKS Callbacks;
+        shClBackendDarwinTransferGetCallbacks(pCtx, &Callbacks);
+        vrc = pConn->transferCreate(SHCLTRANSFERDIR_GUEST_TO_HOST, SHCLSOURCE_REMOTE, &Callbacks,
+                                   NIL_SHCLTRANSFERID, &pTransfer);
+    }
+    if (RT_SUCCESS(vrc))
+    {
+        idTransfer = ShClTransferGetID(pTransfer);
+        vrc = pConn->transferInit(pTransfer);
+    }
+    if (RT_SUCCESS(vrc))
+        vrc = ShClTransferWaitForStatus(pTransfer, SHCL_TIMEOUT_DEFAULT_MS, SHCLTRANSFERSTATUS_INITIALIZED);
+    if (RT_SUCCESS(vrc) && shClDarwinFileCanceled(pWork))
+        vrc = VERR_CANCELLED;
+    if (RT_SUCCESS(vrc))
+        vrc = ShClTransferRootListRead(pTransfer);
+    char szCache[RTPATH_MAX];
+    if (RT_SUCCESS(vrc))
+    {
+        const char *pszHome = RTEnvGet("VBOX_USER_HOME");
+        vrc = pszHome && *pszHome ? RTStrCopy(szCache, sizeof(szCache), pszHome)
+                                 : RTPathTemp(szCache, sizeof(szCache));
+        if (RT_SUCCESS(vrc))
+            vrc = RTPathAppend(szCache, sizeof(szCache), "VBoxClipboardCache");
+    }
+    char *pszDirectory = NULL;
+    char *pszRoots = NULL;
+    size_t cbRoots = 0;
+    if (RT_SUCCESS(vrc))
+        vrc = shClFileCacheReceive(pTransfer, szCache, _1G, shClDarwinFileCanceled, pWork,
+                                   &pszDirectory, &pszRoots, &cbRoots);
+    bool fPublished = false;
+    if (RT_SUCCESS(vrc))
+    {
+        RTCritSectEnter(&pCtx->CritSect);
+        if (pCtx->fFileStopping || pCtx->uFileGeneration != pWork->uGeneration)
+            vrc = VERR_CANCELLED;
+        else
+        {
+            RTCritSectEnter(&pCtx->CritSectPasteboard);
+            vrc = writeFileURLsToPasteboard(pCtx->hPasteboard, pWork->idOwnership,
+                                            pCtx->hStrOwnershipFlavor, pszRoots, cbRoots);
+            if (vrc == VERR_CANCELLED)
+                ASMAtomicWriteBool(&pCtx->fForceSync, true);
+            fPublished = RT_SUCCESS(vrc);
+            RTCritSectLeave(&pCtx->CritSectPasteboard);
+        }
+        RTCritSectLeave(&pCtx->CritSect);
+    }
+    if (pszDirectory && !fPublished)
+        shClFileCacheDiscard(pszDirectory);
+    RTStrFree(pszDirectory);
+    RTStrFree(pszRoots);
+    if (RT_FAILURE(vrc))
+    {
+        RTCritSectEnter(&pCtx->CritSect);
+        RTCritSectEnter(&pCtx->CritSectPasteboard);
+        if (   pCtx->uFileGeneration == pWork->uGeneration
+            && pCtx->idGuestOwnership == pWork->idOwnership
+            && shClDarwinIsPasteboardOwner(pCtx, pWork->idOwnership))
+            clearPasteboard(pCtx->hPasteboard, &pCtx->hStrOwnershipFlavor);
+        RTCritSectLeave(&pCtx->CritSectPasteboard);
+        RTCritSectLeave(&pCtx->CritSect);
+    }
+    if (pTransfer)
+    {
+        if (!ShClTransferStatusIsTerminal(ShClTransferGetStatus(pTransfer)))
+        {
+            if (RT_SUCCESS(vrc))
+                ShClTransferComplete(pTransfer);
+            else if (vrc == VERR_CANCELLED)
+                ShClTransferCancel(pTransfer);
+            else
+                ShClTransferError(pTransfer, vrc);
+            pConn->transferReportStatus(pTransfer, ShClTransferGetStatus(pTransfer), vrc);
+        }
+        ShClTransferRelease(pTransfer);
+        pConn->transferDestroyById(idTransfer);
+    }
+    if (RT_FAILURE(vrc) && vrc != VERR_CANCELLED)
+        LogRelMax(16, ("Shared Clipboard: Receiving a macOS file snapshot failed with %Rrc\n", vrc));
+    return vrc;
+}
+
+/** Serial worker; clipboard callbacks never wait on guest file I/O. */
+static DECLCALLBACK(int) shClDarwinFileThread(RTTHREAD hThread, void *pvUser)
+{
+    PSHCLCONTEXT pCtx = (PSHCLCONTEXT)pvUser;
+    RTThreadUserSignal(hThread);
+    uint64_t uProcessed = 0;
+    for (;;)
+    {
+        int vrc = RTSemEventWait(pCtx->hFileEvent, RT_INDEFINITE_WAIT);
+        if (RT_FAILURE(vrc))
+            return vrc;
+        for (;;)
+        {
+            RTCritSectEnter(&pCtx->CritSect);
+            if (pCtx->fFileStopping)
+            {
+                RTCritSectLeave(&pCtx->CritSect);
+                return VINF_SUCCESS;
+            }
+            SHCLDARWINFILEWORK Work = { pCtx, pCtx->uFileGeneration, 0 };
+            bool const fFiles = RT_BOOL(pCtx->fFileFormats & VBOX_SHCL_FMT_URI_LIST);
+            RTCritSectEnter(&pCtx->CritSectPasteboard);
+            Work.idOwnership = pCtx->idGuestOwnership;
+            RTCritSectLeave(&pCtx->CritSectPasteboard);
+            RTCritSectLeave(&pCtx->CritSect);
+            if (uProcessed == Work.uGeneration)
+                break;
+            uProcessed = Work.uGeneration;
+            if (fFiles)
+                shClDarwinFileReceive(pCtx, &Work);
+        }
+    }
+}
+
+/** Stops the worker before releasing the connection it calls. */
+static void shClDarwinFileStop(PSHCLCONTEXT pCtx)
+{
+    RTCritSectEnter(&pCtx->CritSect);
+    pCtx->fFileStopping = true;
+    pCtx->fClientReady = false;
+    pCtx->fFileFormats = VBOX_SHCL_FMT_NONE;
+    ++pCtx->uFileGeneration;
+    RTCritSectLeave(&pCtx->CritSect);
+    if (pCtx->hFileThread != NIL_RTTHREAD)
+    {
+        int vrc = RTSemEventSignal(pCtx->hFileEvent);
+        AssertRC(vrc);
+        vrc = RTThreadWait(pCtx->hFileThread, RT_INDEFINITE_WAIT, NULL);
+        AssertFatalRC(vrc);
+        RTCritSectEnter(&pCtx->CritSect);
+        pCtx->hFileThread = NIL_RTTHREAD;
+        RTCritSectLeave(&pCtx->CritSect);
+    }
+    if (pCtx->hFileEvent != NIL_RTSEMEVENT)
+    {
+        RTSEMEVENT const hEvent = pCtx->hFileEvent;
+        RTCritSectEnter(&pCtx->CritSect);
+        pCtx->hFileEvent = NIL_RTSEMEVENT;
+        RTCritSectLeave(&pCtx->CritSect);
+        RTSemEventDestroy(hEvent);
+    }
+}
+
 /** @copydoc SHCLTXPROVIDERIFACE::pfnRootListRead */
 static DECLCALLBACK(int) shClSvcDarwinTransferIfaceHGRootListRead(PSHCLTXPROVIDERCTX pProviderCtx)
 {
@@ -133,6 +367,15 @@ static DECLCALLBACK(void) shClSvcDarwinTransferOnCreatedCallback(PSHCLTRANSFERCA
         int const vrc = ShClTransferSetProvider(pTransfer, &Provider);
         AssertRC(vrc);
     }
+    else if (ShClTransferGetDir(pTransfer) == SHCLTRANSFERDIR_GUEST_TO_HOST)
+    {
+        SHCLTXPROVIDER Provider;
+        RT_ZERO(Provider);
+        int vrc = pCtx->pConn->transferProviderInitGuest(&Provider);
+        if (RT_SUCCESS(vrc))
+            vrc = ShClTransferSetProvider(pTransfer, &Provider);
+        AssertRC(vrc);
+    }
 }
 
 
@@ -145,6 +388,8 @@ static DECLCALLBACK(int) shClSvcDarwinTransferOnInitializeCallback(PSHCLTRANSFER
     if (   ShClTransferGetDir(pTransfer) == SHCLTRANSFERDIR_HOST_TO_GUEST
         && ShClTransferGetSource(pTransfer) == SHCLSOURCE_LOCAL)
         return ShClTransferRootListRead(pTransfer);
+    if (ShClTransferGetDir(pTransfer) == SHCLTRANSFERDIR_GUEST_TO_HOST)
+        return VINF_SUCCESS;
     return VERR_NOT_SUPPORTED;
 }
 #endif /* VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS */
@@ -169,13 +414,24 @@ static int vboxClipboardChanged(PSHCLCONTEXT pCtx, bool fForce)
     if (   pCtx->pConn
         && pCtx->fClientReady)
     {
+        /*
+         * An application replacing the pasteboard content clears it first and adds the new
+         * items afterwards, and only clearing it makes the pasteboard count as modified.
+         * So, having looked right in between and found nothing usable, we have to keep
+         * looking for a little while or we would miss the new content.
+         */
+        bool const fRecheck = pCtx->cRecheckPolls > 0;
+        if (fRecheck)
+            pCtx->cRecheckPolls--;
+
         /* Retrieve the formats currently in the clipboard and supported by VBox. */
         bool fChanged = false;
         vrc = RTCritSectEnter(&pCtx->CritSectPasteboard);
         if (RT_SUCCESS(vrc))
         {
+            bool const fResync = ASMAtomicXchgBool(&pCtx->fForceSync, false);
             vrc = queryNewPasteboardFormats(pCtx->hPasteboard, pCtx->idGuestOwnership, pCtx->hStrOwnershipFlavor,
-                                            fForce, &fFormats, &fChanged);
+                                            fForce || fRecheck || fResync, &fFormats, &fChanged);
 
             int const vrc2 = RTCritSectLeave(&pCtx->CritSectPasteboard);
             AssertRC(vrc2);
@@ -183,7 +439,27 @@ static int vboxClipboardChanged(PSHCLCONTEXT pCtx, bool fForce)
                 vrc = vrc2;
         }
         if (RT_SUCCESS(vrc) && fChanged)
+        {
+            if (fFormats != VBOX_SHCL_FMT_NONE)
+                pCtx->cRecheckPolls = 0;
+            else if (fRecheck)
+                fChanged = false; /* Reported already. */
+            else
+                pCtx->cRecheckPolls = SHCL_DARWIN_RECHECK_POLLS;
+        }
+        if (RT_SUCCESS(vrc) && fChanged)
+        {
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+            if (pCtx->fFileFormats & VBOX_SHCL_FMT_URI_LIST)
+            {
+                pCtx->fFileFormats = VBOX_SHCL_FMT_NONE;
+                ++pCtx->uFileGeneration;
+                if (pCtx->hFileEvent != NIL_RTSEMEVENT)
+                    RTSemEventSignal(pCtx->hFileEvent);
+            }
+#endif
             vrc = pCtx->pConn->reportLocalFormats(fFormats);
+        }
     }
 
     RTCritSectLeave(&pCtx->CritSect);
@@ -228,6 +504,12 @@ static int shClBackendDarwinInit(void)
 {
     g_ctx.fTerminate = false;
     g_ctx.fClientReady = false;
+    g_ctx.fForceSync = false;
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    g_ctx.hFileThread = NIL_RTTHREAD;
+    g_ctx.hFileEvent = NIL_RTSEMEVENT;
+    g_ctx.fFileStopping = true;
+#endif
 
     int vrc;
 
@@ -267,6 +549,9 @@ static int shClBackendDarwinInit(void)
  */
 static void shClBackendDarwinDestroy(void)
 {
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    shClDarwinFileStop(&g_ctx);
+#endif
     /*
      * Signal the termination of the polling thread and wait for it to respond.
      */
@@ -313,8 +598,14 @@ static int shClBackendDarwinConnect(GuestShClConn *pConn, PSHCLCONTEXT *ppCtx)
     int vrc;
     if (!g_ctx.pConn)
     {
+        g_ctx.cRecheckPolls = 0;
         g_ctx.pConn = pConn;
         g_ctx.fClientReady = false;
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+        g_ctx.fFileStopping = false;
+        g_ctx.fFileFormats = VBOX_SHCL_FMT_NONE;
+        g_ctx.uFileGeneration = 0;
+#endif
         *ppCtx = &g_ctx;
         vrc = VINF_SUCCESS;
     }
@@ -323,6 +614,23 @@ static int shClBackendDarwinConnect(GuestShClConn *pConn, PSHCLCONTEXT *ppCtx)
 
     RTCritSectLeave(&g_ctx.CritSect);
 
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    if (RT_SUCCESS(vrc))
+    {
+        vrc = RTSemEventCreate(&g_ctx.hFileEvent);
+        if (RT_SUCCESS(vrc))
+            vrc = RTThreadCreate(&g_ctx.hFileThread, shClDarwinFileThread, &g_ctx, 0,
+                                 RTTHREADTYPE_IO, RTTHREADFLAGS_WAITABLE, "ShClMacFiles");
+        if (RT_FAILURE(vrc))
+        {
+            shClDarwinFileStop(&g_ctx);
+            RTCritSectEnter(&g_ctx.CritSect);
+            g_ctx.pConn = NULL;
+            *ppCtx = NULL;
+            RTCritSectLeave(&g_ctx.CritSect);
+        }
+    }
+#endif
     return vrc;
 }
 
@@ -363,7 +671,13 @@ static int shClBackendDarwinSync(PSHCLCONTEXT pCtx)
     RTCritSectEnter(&g_ctx.CritSect);
     int vrc = VINF_SUCCESS;
     if (pCtx->pConn)
+    {
         pCtx->fClientReady = true;
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+        if (pCtx->hFileEvent != NIL_RTSEMEVENT)
+            RTSemEventSignal(pCtx->hFileEvent);
+#endif
+    }
     else
         vrc = VERR_NOT_SUPPORTED;
     RTCritSectLeave(&g_ctx.CritSect);
@@ -386,6 +700,7 @@ static int shClBackendDarwinDisconnect(PSHCLCONTEXT pCtx)
     AssertPtrReturn(pCtx->pConn, VERR_INVALID_POINTER);
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
     GuestShClConn * const pConn = pCtx->pConn;
+    shClDarwinFileStop(pCtx);
 #endif
 
     RTCritSectEnter(&g_ctx.CritSect);
@@ -420,28 +735,26 @@ static int shClBackendDarwinReportFormats(PSHCLCONTEXT pCtx, SHCLFORMATS fFormat
 
     LogFlowFunc(("fFormats=%02X\n", fFormats));
 
+    RTCritSectEnter(&pCtx->CritSect);
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    ++pCtx->uFileGeneration;
+    pCtx->fFileFormats = fFormats;
+    if (pCtx->hFileEvent != NIL_RTSEMEVENT)
+        RTSemEventSignal(pCtx->hFileEvent);
+#endif
+
     if (fFormats == VBOX_SHCL_FMT_NONE)
     {
+        /* Only take back what is ours.  The GUI gets here when a VM session closes, and by
+           then the pasteboard may hold what the user copied in another application. */
+        int vrcClear = VINF_SUCCESS;
         RTCritSectEnter(&pCtx->CritSectPasteboard);
-        int vrcClear = clearPasteboard(pCtx->hPasteboard, &pCtx->hStrOwnershipFlavor);
+        if (shClDarwinIsPasteboardOwner(pCtx, pCtx->idGuestOwnership))
+            vrcClear = clearPasteboard(pCtx->hPasteboard, &pCtx->hStrOwnershipFlavor);
         RTCritSectLeave(&pCtx->CritSectPasteboard);
+        RTCritSectLeave(&pCtx->CritSect);
         return vrcClear;
     }
-
-#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
-    if (fFormats & VBOX_SHCL_FMT_URI_LIST)
-    {
-        LogRelMax(16, ("Shared Clipboard: Darwin backend does not support guest-to-host file-transfer offers yet\n"));
-        fFormats &= ~VBOX_SHCL_FMT_URI_LIST;
-        if (fFormats == VBOX_SHCL_FMT_NONE)
-        {
-            RTCritSectEnter(&pCtx->CritSectPasteboard);
-            int vrcClear = clearPasteboard(pCtx->hPasteboard, &pCtx->hStrOwnershipFlavor);
-            RTCritSectLeave(&pCtx->CritSectPasteboard);
-            return vrcClear;
-        }
-    }
-#endif
 
     RTCritSectEnter(&pCtx->CritSectPasteboard);
 
@@ -460,10 +773,17 @@ static int shClBackendDarwinReportFormats(PSHCLCONTEXT pCtx, SHCLFORMATS fFormat
     char szValue[32];
     RTStrPrintf(szValue, sizeof(szValue), "%#x", fFormats);
 
-    takePasteboardOwnership(pCtx->hPasteboard, pCtx->idGuestOwnership, pCtx->szGuestOwnershipFlavor, szValue,
-                            &pCtx->hStrOwnershipFlavor);
+    int const vrc = takePasteboardOwnership(pCtx->hPasteboard, pCtx->idGuestOwnership,
+                                           pCtx->szGuestOwnershipFlavor, szValue, &pCtx->hStrOwnershipFlavor);
 
     RTCritSectLeave(&pCtx->CritSectPasteboard);
+    RTCritSectLeave(&pCtx->CritSect);
+    if (RT_FAILURE(vrc))
+        return vrc;
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    if (fFormats & VBOX_SHCL_FMT_URI_LIST)
+        return VINF_SUCCESS; /* The worker receives files and publishes concrete local URLs. */
+#endif
 
     /*
      * Now, request the data from the guest.
@@ -521,11 +841,26 @@ static int shClBackendDarwinWriteData(PSHCLCONTEXT pCtx, SHCLFORMAT fFormat, voi
 
     LogFlowFuncEnter();
 
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    if (fFormat == VBOX_SHCL_FMT_URI_LIST)
+        return VINF_SUCCESS; /* The matching request event carries this offer to the file worker. */
+#endif
+    RTCritSectEnter(&pCtx->CritSect);
+#ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+    if (pCtx->fFileFormats & VBOX_SHCL_FMT_URI_LIST)
+    {
+        RTCritSectLeave(&pCtx->CritSect);
+        return VERR_CANCELLED;
+    }
+#endif
     RTCritSectEnter(&pCtx->CritSectPasteboard);
 
-    int vrc = writeToPasteboard(pCtx->hPasteboard, pCtx->idGuestOwnership, pvData, cbData, fFormat);
+    int vrc = shClDarwinIsPasteboardOwner(pCtx, pCtx->idGuestOwnership)
+            ? writeToPasteboard(pCtx->hPasteboard, pCtx->idGuestOwnership, pvData, cbData, fFormat)
+            : VERR_CANCELLED;
 
     RTCritSectLeave(&pCtx->CritSectPasteboard);
+    RTCritSectLeave(&pCtx->CritSect);
 
     if (RT_FAILURE(vrc))
         LogRelMax(16, ("Shared Clipboard: Writing %RU32 bytes of guest-to-host clipboard data in format %#x to the macOS pasteboard failed with %Rrc\n",

@@ -2510,6 +2510,11 @@ bool UIExtraDataManager::hidLedsSyncState(const QUuid &uID)
     return !isFeatureRestricted(GUI_HidLedsSync, uID);
 }
 
+bool UIExtraDataManager::isScaleFactorSelected(const QUuid &uID)
+{
+    return !extraDataStringList(GUI_ScaleFactor, uID).isEmpty();
+}
+
 double UIExtraDataManager::scaleFactor(const QUuid &uID, int iScreenIndex)
 {
     /* Get corresponding extra-data for this machine: */

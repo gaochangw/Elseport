@@ -343,7 +343,8 @@ TrackedObjectState_T TrackedObjectData::updateState(TrackedObjectState_T aNewSta
 class TrackedObjectsCollector;
 extern TrackedObjectsCollector gTrackedObjectsCollector;
 
-TrackedObjectsCollector::TrackedObjectsCollector(): m_fInitialized(false)
+TrackedObjectsCollector::TrackedObjectsCollector()
+    : m_Added(0), m_Released(0), m_fInitialized(false)
 {
 }
 
@@ -365,8 +366,8 @@ TrackedObjectsCollector::~TrackedObjectsCollector()
             else
                 LogRel(("%u object is still presented in the collector\n", m_trackedObjectsData.size()));
 
-            m_Released += m_trackedObjectsData.size();
-            m_trackedObjectsData.clear();
+            vrc = i_clear();
+            AssertRC(vrc);
         }
 
         LogRel(("The Objects Collector history data: added objects %u, released objects %u\n", m_Added, m_Released));
@@ -796,10 +797,15 @@ int TrackedObjectsCollector::i_clear()
     int vrc = VINF_SUCCESS;
     try
     {
-        m_Released += m_trackedObjectsData.size();
-        m_trackedObjectsData.clear();
+        /* Releasing an interface may call invalidateObj().  Detach the map
+         * before running destructors so reentrant lookups never inspect the
+         * container while its nodes are being destroyed. */
+        std::map<com::Utf8Str, TrackedObjectData> detachedObjects;
+        detachedObjects.swap(m_trackedObjectsData);
+        m_Released += detachedObjects.size();
         m_trackedObjectIds.clear();
         m_trackedInvalidObjectIds.clear();
+        detachedObjects.clear();
     }
     catch (...)
     {

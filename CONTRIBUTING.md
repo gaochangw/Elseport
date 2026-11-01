@@ -1,55 +1,34 @@
-# Contributing to this repository
+# Contributing to Elseport
 
-We welcome your contributions! There are multiple ways to contribute.
+This independent project is based on VirtualBox. Read [AGENTS.md](AGENTS.md),
+the subsystem's local guidance and [the coding guide](doc/VBox-CodingGuidelines.cpp)
+before changing code. Keep changes focused and test the relevant target.
 
-## Opening issues
+## Before sharing a change
 
-For bugs or enhancement requests, please file a GitHub issue unless it's
-security related. When filing a bug remember that the better written the bug is,
-the more likely it is to be fixed. If you think you've found a security
-vulnerability, do not raise a GitHub issue and follow the instructions in our
-[security policy](./SECURITY.md).
+- Follow [SECURITY.md](SECURITY.md). Handle possible vulnerabilities privately.
+- Discuss non-security work through the project's designated channel. The
+  upstream issue tracker is not the independent project's support queue.
+- Preserve existing copyright and license notices. New files must accurately
+  describe origin and license; do not copy a holder's name from a template.
+- Explain the problem, cause, fix, validation, untested configurations and API
+  impact. Update relevant documentation when behaviour changes.
+- Use a `Signed-off-by:` line with your real contribution identity when
+  preparing a contribution for submission. It does not itself assign copyright
+  or sign a separate agreement.
 
-## Contributing code
+Independent contributions must be compatible with the applicable GPLv3 and
+third-party licenses. Do not restrict recipients' existing rights. This project
+does not imply that an Oracle Contributor Agreement covers independent work.
 
-We welcome your code contributions. Before submitting code via a pull request,
-you will need to have signed the [Oracle Contributor Agreement][OCA] (OCA) and
-your commits need to include the following line using the name and e-mail
-address you used to sign the OCA:
+## Upstream contributions
 
-```text
-Signed-off-by: Your Name <you@example.org>
-```
+Upstream development centers on SVN; the Git mirror may lag it. Changes intended
+for upstream must follow its contribution process, which requires an
+[Oracle Contributor Agreement](https://oca.opensource.oracle.com/) and the
+appropriate sign-off. Verify the current requirements before submission.
+An independent contribution is not automatically an upstream submission.
 
-This can be automatically added to pull requests by committing with `--sign-off`
-or `-s`, e.g.
-
-```text
-git commit --signoff
-```
-
-Only pull requests from committers that can be verified as having signed the OCA
-can be accepted.
-
-## Pull request process
-
-1. Ensure there is an issue created to track and discuss the fix or enhancement
-   you intend to submit.
-1. Fork this repository.
-1. Create a branch in your fork to implement the changes. We recommend using
-   the issue number as part of your branch name, e.g. `1234-fixes`.
-1. Ensure that any documentation is updated with the changes that are required
-   by your change.
-1. Ensure that any samples are updated if the base image has been changed.
-1. Submit the pull request. *Do not leave the pull request blank*. Explain exactly
-   what your changes are meant to do and provide simple steps on how to validate.
-   your changes. Ensure that you reference the issue you created as well.
-1. We will assign the pull request to 2-3 people for review before it is merged.
-
-## Code of conduct
-
-Follow the [Golden Rule](https://en.wikipedia.org/wiki/Golden_Rule). If you'd
-like more specific guidelines, see the [Contributor Covenant Code of Conduct][COC].
-
-[OCA]: https://oca.opensource.oracle.com
-[COC]: https://www.contributor-covenant.org/version/1/4/code-of-conduct/
+Do not create commits, branches, tags, pushes or public reports on another
+person's behalf without explicit instruction. For future SVN submission of new
+files, use `svn-ps.sh` / `svn-ps.cmd` to set the correct properties.

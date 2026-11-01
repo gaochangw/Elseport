@@ -3689,7 +3689,8 @@ rem\n""");
     # AUTOCFG defines the path to AutoConfig.kmk and can be specified via '--output-file-autoconfig'.
     w.write('AUTOCFG');
 
-    w.write_all(asPrefixInclude = [ 'KBUILD_' ]);
+    # Config.kmk needs build-scope switches before it includes AutoConfig.kmk.
+    w.write_all(asPrefixInclude = [ 'KBUILD_', 'VBOX_ONLY_' ]);
 
     w.write('KBUILD_DEVTOOLS');
     w.write('PATH_OUT_BASE');
@@ -4156,7 +4157,7 @@ def main():
         # Only build the Guest Additions if explicitly specified.
         lambda env: { 'VBOX_ONLY_ADDITIONS': '1' } if g_oArgs.config_only_additions else {},
         # Only build the documentation if explicitly specified.
-        lambda env: { 'VBOX_ONLY_DOCS': '1' } if g_oArgs.config_only_additions else {},
+        lambda env: { 'VBOX_ONLY_DOCS': '1' } if g_oArgs.config_only_docs else {},
         # Disabling building the docs when only building Additions or explicitly disabled building the docs.
         lambda env: { 'VBOX_WITH_DOCS_PACKING': '' } if g_oArgs.config_only_additions
                                                      or g_oArgs.config_disable_docs else {},

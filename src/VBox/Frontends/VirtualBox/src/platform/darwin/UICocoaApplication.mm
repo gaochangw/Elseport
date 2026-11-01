@@ -72,6 +72,8 @@
 /** Class for event handling. */
 @interface UICocoaApplicationPrivate : NSApplication
 {
+    /** Prevent AppKit from recursively entering Qt's termination handling. */
+    bool                   m_fTerminating;
     /** The event mask for which there currently are callbacks. */
     uint32_t        m_fMask;
     /** Array of callbacks. */
@@ -205,6 +207,13 @@
 /** Standard handler called right before NSApp starting termination. */
 - (void)terminate :(nullable id)sender
 {
+    /* Qt's quit handling can re-enter this method before the outer delegate
+     * call returns.  A second AppKit termination may call exit() before Qt
+     * can emit aboutToQuit and return through main(). */
+    if (m_fTerminating)
+        return;
+    m_fTerminating = true;
+
     if (UICocoaApplication::instance()->isPreventAppNap())
     {
         //printf("Finish activity preventing AppNap!\n");
@@ -215,6 +224,7 @@
 
     /* Call to base-class: */
     [super terminate: sender];
+    m_fTerminating = false;
 }
 
 /** Registers to cocoa notification @a pstrNotificationName. */

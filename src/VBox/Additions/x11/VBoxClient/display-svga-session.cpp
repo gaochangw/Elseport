@@ -341,6 +341,8 @@ static DECLCALLBACK(int) vbclSVGASessionWorker(bool volatile *pfShutdown)
      */
     for (;;)
     {
+        if (g_pDisplayHelper && g_pDisplayHelper->pfnPoll)
+            g_pDisplayHelper->pfnPoll();
         rc = vbDrmIpcConnectionHandler(&g_hClient);
 
         /* Try to shutdown thread as soon as possible. */

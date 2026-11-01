@@ -102,6 +102,8 @@ public:
 
     /** Applies machine-view scale-factor. */
     virtual void applyMachineViewScaleFactor();
+    /** Returns the scale-factor to go by for a screen with @a dDevicePixelRatio. */
+    double selectedScaleFactor(double dDevicePixelRatio) const;
 
     /** Returns screen ID for this view. */
     ulong screenId() const { return m_uScreenId; }
@@ -220,6 +222,10 @@ protected slots:
 
     /** Handles the scale-factor change. */
     void sltHandleScaleFactorChange(const QUuid &uMachineID);
+#ifdef VBOX_WS_MAC
+    /** Reconciles the optional guest desktop scale acknowledgement. */
+    void sltCheckGuestScale();
+#endif
 
     /** Handles the scaling-optimization change. */
     void sltHandleScalingOptimizationChange(const QUuid &uMachineID);
@@ -398,6 +404,15 @@ protected:
       * @note Useful to avoid spamming CDisplay with same hint before
       *       frame-buffer finally resized to requested size. */
     QSize  m_lastSizeHint;
+
+#ifdef VBOX_WS_MAC
+    /** Updates the scale request; returns whether native pixel output changed. */
+    bool updateGuestScale(double dDevicePixelRatio);
+    /** Acknowledged, current-session desktop scale permits native pixel output. */
+    bool m_fGuestScaleApplied;
+    /** Last request including a fresh token to reject stale guest properties. */
+    QString m_strGuestScaleRequest;
+#endif
 
     /** Holds current host-screen number. */
     int m_iHostScreenNumber;

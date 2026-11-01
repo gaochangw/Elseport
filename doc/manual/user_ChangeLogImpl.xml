@@ -94,6 +94,45 @@ Rules for adding a changelog entry to make them look more uniform:
     <itemizedlist>
 
       <listitem>
+        <para>GUI: Fixed recursive application termination on macOS skipping
+          normal cleanup when using Qt 6</para>
+      </listitem>
+
+      <listitem>
+        <para>Main: Fixed reentrant cleanup of tracked objects during
+          service shutdown</para>
+      </listitem>
+
+      <listitem>
+        <para>Guest Additions: Fixed Guest Control capability detection when
+          a host request is already pending, including after restoring a VM</para>
+      </listitem>
+
+      <listitem>
+        <para>Shared Clipboard: Added bounded local file and directory snapshots
+          for macOS receivers and Linux X11 guest receivers. Superseded macOS
+          transfers cannot replace newer clipboard contents</para>
+      </listitem>
+
+      <listitem>
+        <para>GUI and Linux Guest Additions: Added automatic desktop scaling
+          for a single-monitor GNOME Wayland guest on a macOS high-density
+          display, with native pixel output after guest acknowledgement</para>
+      </listitem>
+
+      <listitem>
+        <para>Guest Control: Truncate an existing host destination when copying
+          a smaller guest file over it, instead of retaining old trailing bytes</para>
+      </listitem>
+
+      <listitem>
+        <para>Build: Corrected the build scope selected by
+          <computeroutput>configure.py --only-additions</computeroutput>
+          and exported scope settings in the generated environment</para>
+      </listitem>
+
+
+      <listitem>
         <para>NAT: Fixed ICMP traceroute missing intermediate hops when using
           NAT networking</para>
       </listitem>

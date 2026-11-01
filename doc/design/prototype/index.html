@@ -1,0 +1,31 @@
+<!doctype html>
+<!-- $Id$ -->
+<!-- Elseport: local, simulated interface prototype. -->
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="Elseport interface design prototype, using simulated Linux workspaces.">
+    <title>Elseport · 设计原型</title>
+    <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="review-bar" aria-label="原型预览选项">
+        <a class="review-brand" href="../brand.html">Elseport <span>Design 01</span></a>
+        <span class="review-note" id="review-note">交互模拟 · 不连接真实虚拟电脑</span>
+        <div class="review-controls">
+            <label for="review-screen" class="sr-only">预览画面</label>
+            <select id="review-screen"></select>
+            <button id="review-language" type="button" aria-label="Switch language">EN</button>
+            <button id="review-theme" type="button" aria-label="切换深色外观"></button>
+            <button id="review-contrast" type="button" aria-pressed="false">高对比度</button>
+        </div>
+    </div>
+    <main id="prototype" class="app-window" aria-label="Elseport" tabindex="-1"></main>
+    <p id="review-caption" class="review-caption">画面、文件与进度均为示例。可切换主题、语言和预览画面。</p>
+    <div id="announcer" class="sr-only" aria-live="polite"></div>
+    <script src="app.js"></script>
+</body>
+</html>

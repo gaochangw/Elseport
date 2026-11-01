@@ -45,7 +45,7 @@ TEMPLATE_XPComDll_CXXFLAGS            = -g -pipe -ansi -Wall -Wno-unused -Wno-no
 	$(VBOX_GCC_Wno-invalid-offsetof) -Wno-sign-compare -Wno-unused -Wno-ctor-dtor-privacy \
 	$(VBOX_GCC_fvisibility-inlines-hidden) $(VBOX_GCC_fvisibility-hidden) \
 	$(VBOX_GCC_Wno-delete-non-virtual-dtor) $(VBOX_GCC_Wno-multistatement-macros) $(VBOX_GCC_fdiagnostics-show-option) \
-	$(VBOX_GCC_fdiagnostics-color) $(VBOX_GCC_SANITIZER_FLAGS) $(VBOX_GCC_OPT) $(VBOX_GCC_FP)
+	$(VBOX_GCC_fdiagnostics-color) $(VBOX_GCC_SANITIZER_FLAGS) $(VBOX_GCC_OPT) $(VBOX_GCC_FP) -fno-strict-aliasing
 #if !defined(VBOX_GCC_Wno-delete-non-virtual-dtor) && defined(VBOX_GCC_Wno-non-virtual-dtor)
 ifndef VBOX_GCC_Wno-delete-non-virtual-dtor
  ifdef VBOX_GCC_Wno-non-virtual-dtor
@@ -54,12 +54,15 @@ ifndef VBOX_GCC_Wno-delete-non-virtual-dtor
 endif
 TEMPLATE_XPComDll_CXXFLAGS.x86        = -m32
 TEMPLATE_XPComDll_CXXFLAGS.amd64      = -m64
-TEMPLATE_XPComDll_CXXFLAGS.darwin     = -fpascal-strings -fshort-wchar -fno-common -fno-rtti $(VBOX_DARWIN_DEF_SDK_CXXFLAGS)
+# Note! -fno-builtin-wcslen: With -fshort-wchar clang may turn PRUnichar length loops into wcslen
+#       calls, but wcslen in the macOS libc works on 32-bit units and would return bogus lengths.
+TEMPLATE_XPComDll_CXXFLAGS.darwin     = -fpascal-strings -fshort-wchar -fno-builtin-wcslen -fno-common -fno-rtti $(VBOX_DARWIN_DEF_SDK_CXXFLAGS)
 TEMPLATE_XPComDll_CXXFLAGS.freebsd    = -pthread
 TEMPLATE_XPComDll_CXXFLAGS.linux      = -pthread
 TEMPLATE_XPComDll_CXXFLAGS.solaris    = -fno-omit-frame-pointer # for now anyway.
 TEMPLATE_XPComDll_CFLAGS              = -g -pipe -Wall -Wno-unused -Wno-parentheses -Wno-uninitialized $(VBOX_GCC_fvisibility-hidden) \
-	$(VBOX_GCC_Wno-multistatement-macros) $(VBOX_GCC_fdiagnostics-show-option) $(VBOX_GCC_SANITIZER_FLAGS) $(VBOX_GCC_OPT) $(VBOX_GCC_FP)
+	$(VBOX_GCC_Wno-multistatement-macros) $(VBOX_GCC_fdiagnostics-show-option) $(VBOX_GCC_SANITIZER_FLAGS) $(VBOX_GCC_OPT) $(VBOX_GCC_FP) \
+	-fno-strict-aliasing
 TEMPLATE_XPComDll_CFLAGS.x86          = -m32
 TEMPLATE_XPComDll_CFLAGS.amd64        = -m64
 TEMPLATE_XPComDll_CFLAGS.freebsd      = -pthread

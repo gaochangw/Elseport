@@ -4,5 +4,10 @@
   <title>Display Settings</title>
   <body>
     <p>The following tabs are available for configuring the display for a virtual machine. </p>
+    <p>On macOS, a single-monitor GNOME Wayland guest running the current
+      Guest Additions can automatically match the host's integer display scale.
+      With no explicit zoom selected, the frontend uses native pixels after the
+      guest confirms its desktop scale. Other desktop configurations keep the
+      existing scaling behaviour.</p>
   </body>
 </topic>

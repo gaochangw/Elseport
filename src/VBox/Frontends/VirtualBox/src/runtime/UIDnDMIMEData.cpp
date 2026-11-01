@@ -39,6 +39,7 @@
 /* Other VBox includes: */
 #include <VBox/log.h>
 #include <iprt/errcore.h>
+#include <iprt/string.h>
 
 #include <VBox/GuestHost/DragAndDrop.h>
 
@@ -225,12 +226,31 @@ int UIDnDMIMEData::getDataAsVariant(const QVector<uint8_t> &vecData,
                  vecData.size(), qPrintable(strMIMEType), QMetaType(vaType).name()));
 
     int rc = VINF_SUCCESS;
+    QString strText;
+    /* Text payloads are byte spans with an optional final NUL.  Validate the
+     * complete span before decoding; never search beyond it for a terminator. */
+    if (   vaType == QMetaType::QString
+        || vaType == QMetaType::QVariantList
+        || vaType == QMetaType::QStringList)
+    {
+        qsizetype cchText = vecData.size();
+        if (cchText && vecData.last() == '\0')
+            cchText--;
+        if (cchText)
+        {
+            rc = RTStrValidateEncodingEx(reinterpret_cast<const char *>(vecData.constData()),
+                                         (size_t)cchText, RTSTR_VALIDATE_ENCODING_EXACT_LENGTH);
+            if (RT_FAILURE(rc))
+                return rc;
+            strText = QString::fromUtf8(reinterpret_cast<const char *>(vecData.constData()), cchText);
+        }
+    }
 
     switch (vaType)
     {
         case QMetaType::QString:
         {
-            vaData = QVariant::fromValue(QString(reinterpret_cast<const char *>(vecData.constData())));
+            vaData = QVariant::fromValue(strText);
             Assert(vaData.typeId() == QMetaType::QString);
 
             break;
@@ -248,11 +268,9 @@ int UIDnDMIMEData::getDataAsVariant(const QVector<uint8_t> &vecData,
         /* See: https://developer.apple.com/library/ios/documentation/Miscellaneous/Reference/UTIRef/Articles/System-DeclaredUniformTypeIdentifiers.html */
         case QMetaType::QVariantList: /* Used on OS X for representing URI lists. */
         {
-            const QString strData = QString(reinterpret_cast<const char*>(vecData.constData()));
-
             QVariantList lstVariant;
 
-            Q_FOREACH(const QString& strCur, strData.split(DND_PATH_SEPARATOR_STR, Qt::SkipEmptyParts))
+            Q_FOREACH(const QString& strCur, strText.split(DND_PATH_SEPARATOR_STR, Qt::SkipEmptyParts))
             {
                 QVariant vaURL = QVariant::fromValue(QUrl(strCur));
                 Assert(vaURL.typeId() == QMetaType::QUrl);
@@ -266,8 +284,7 @@ int UIDnDMIMEData::getDataAsVariant(const QVector<uint8_t> &vecData,
 
         case QMetaType::QStringList:
         {
-            const QString strData = QString(reinterpret_cast<const char*>(vecData.constData()));
-            const QStringList lstString = strData.split(DND_PATH_SEPARATOR_STR, Qt::SkipEmptyParts);
+            const QStringList lstString = strText.split(DND_PATH_SEPARATOR_STR, Qt::SkipEmptyParts);
 
             LogFlowFunc(("\tStringList has %d entries\n", lstString.size()));
 #ifdef DEBUG

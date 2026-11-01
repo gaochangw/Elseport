@@ -28,6 +28,7 @@
 /* Qt includes: */
 #include <QApplication>
 #include <QDrag>
+#include <QFileInfo>
 #include <QKeyEvent>
 #include <QStringList>
 #include <QTimer>
@@ -359,6 +360,65 @@ int UIDnDHandler::dragStartInternal(const QStringList &lstFormats,
     if (!pDrag)
         return VERR_NO_MEMORY;
 
+# if defined(RT_OS_DARWIN) && !defined(VBOX_WITH_DRAG_AND_DROP_PROMISES)
+    /* Stock Qt can expose concrete local URLs without its old promise patches.
+     * Receive into Main's private drop directory before starting the native drag;
+     * no guest I/O must be performed from a Cocoa pasteboard callback. */
+    QString strFormat;
+    if (lstFormats.contains("text/uri-list"))
+        strFormat = "text/uri-list";
+    else if (lstFormats.contains("text/plain;charset=utf-8"))
+        strFormat = "text/plain;charset=utf-8";
+    else if (lstFormats.contains("text/plain"))
+        strFormat = "text/plain";
+
+    QMimeData *pConcreteData = new QMimeData;
+    if (!pConcreteData)
+        rc = VERR_NO_MEMORY;
+    else if (strFormat.isEmpty() || !(actions & Qt::CopyAction))
+        rc = VERR_NOT_SUPPORTED;
+    else
+    {
+        QVariant vaData;
+        rc = retrieveData(Qt::CopyAction, strFormat, UIDnDMIMEData::getMetaType(strFormat), vaData);
+        if (RT_SUCCESS(rc))
+        {
+            if (strFormat == "text/uri-list")
+            {
+                QList<QUrl> urls;
+                foreach (const QVariant &vaUrl, vaData.toList())
+                {
+                    const QUrl url = vaUrl.toUrl();
+                    const QFileInfo fileInfo(url.toLocalFile());
+                    if (   !url.isValid()
+                        || !url.isLocalFile()
+                        || (!url.host().isEmpty() && url.host() != "localhost")
+                        || !fileInfo.isAbsolute()
+                        || !fileInfo.exists())
+                    {
+                        rc = VERR_INVALID_PARAMETER;
+                        break;
+                    }
+                    urls.append(url);
+                }
+                if (RT_SUCCESS(rc) && urls.isEmpty())
+                    rc = VERR_NO_DATA;
+                if (RT_SUCCESS(rc))
+                    pConcreteData->setUrls(urls);
+            }
+            else
+                pConcreteData->setText(vaData.toString());
+        }
+    }
+    if (RT_FAILURE(rc))
+    {
+        delete pConcreteData;
+        delete pDrag;
+        reset();
+        return rc;
+    }
+    pDrag->setMimeData(pConcreteData);
+# else
     /* Note: pMData is transferred to the QDrag object, so no need for deletion. */
     m_pMIMEData = new UIDnDMIMEData(this, lstFormats, defAction, actions);
     if (!m_pMIMEData)
@@ -380,6 +440,7 @@ int UIDnDHandler::dragStartInternal(const QStringList &lstFormats,
      * This does not block Qt's event loop, however (on Windows it would).
      */
     pDrag->setMimeData(m_pMIMEData);
+# endif
     LogFlowFunc(("Executing modal drag'n drop operation ...\n"));
 
     Qt::DropAction dropAction;
@@ -387,11 +448,7 @@ int UIDnDHandler::dragStartInternal(const QStringList &lstFormats,
 #    ifdef VBOX_WITH_DRAG_AND_DROP_PROMISES
         dropAction = pDrag->exec(actions, defAction);
 #    else
-        /* Without having VBOX_WITH_DRAG_AND_DROP_PROMISES enabled drag and drop
-         * will not work on OS X! It also requires some handcrafted patches within Qt
-         * (which also needs VBOX_WITH_DRAG_AND_DROP_PROMISES set there). */
-        dropAction = Qt::IgnoreAction;
-        rc = VERR_NOT_SUPPORTED;
+        dropAction = pDrag->exec(Qt::CopyAction, Qt::CopyAction);
 #    endif
 #  else /* !RT_OS_DARWIN */
     dropAction = pDrag->exec(actions, defAction);

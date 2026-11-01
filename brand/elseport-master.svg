@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="#6659D8" role="img" aria-label="Elseport">
+    <title>Elseport original symbol</title>
+    <desc>An open E with a separate point passing through the opening.</desc>
+    <g id="symbol">
+        <path d="M94 20H57C35 20 20 35 20 57V71C20 93 35 108 57 108H94V90H58C47 90 40 83 39 73H78V55H39C40 45 47 38 58 38H94Z"/>
+        <circle cx="98" cy="64" r="9"/>
+    </g>
+</svg>

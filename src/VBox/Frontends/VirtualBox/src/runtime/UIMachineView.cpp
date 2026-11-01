@@ -56,6 +56,8 @@
 #include "UITranslationEventListener.h"
 #ifdef VBOX_WS_MAC
 # include "UICocoaApplication.h"
+# include "UISession.h"
+# include <VBox/GuestHost/DisplayScale.h>
 # include "DarwinKeyboard.h"
 #endif
 #ifdef VBOX_WITH_DRAG_AND_DROP
@@ -287,18 +289,34 @@ void UIMachineView::destroy(UIMachineView *pMachineView)
     delete pMachineView;
 }
 
+double UIMachineView::selectedScaleFactor(double dDevicePixelRatio) const
+{
+#ifdef VBOX_WS_MAC
+    /* Keep legacy guests at one guest pixel per point. A supported desktop
+     * acknowledges its own matching UI scale before we enable native pixels. */
+    if (!gEDataManager->isScaleFactorSelected(uiCommon().managedVMUuid()))
+        return m_fGuestScaleApplied ? 1.0 : dDevicePixelRatio;
+#else
+    Q_UNUSED(dDevicePixelRatio);
+#endif
+    return gEDataManager->scaleFactor(uiCommon().managedVMUuid(), (int)m_uScreenId);
+}
+
 void UIMachineView::applyMachineViewScaleFactor()
 {
     /* Sanity check: */
     if (!frameBuffer())
         return;
 
-    /* Acquire selected scale-factor: */
-    double dScaleFactor = gEDataManager->scaleFactor(uiCommon().managedVMUuid(), (int)m_uScreenId);
-
     /* Take the device-pixel-ratio into account: */
     frameBuffer()->setDevicePixelRatio(UIDesktopWidgetWatchdog::devicePixelRatio(machineWindow()));
     const double dDevicePixelRatio = frameBuffer()->devicePixelRatio();
+#ifdef VBOX_WS_MAC
+    updateGuestScale(dDevicePixelRatio);
+#endif
+
+    /* Acquire selected scale-factor: */
+    double dScaleFactor = selectedScaleFactor(dDevicePixelRatio);
     const bool fUseUnscaledHiDPIOutput = dScaleFactor != dDevicePixelRatio;
     dScaleFactor = fUseUnscaledHiDPIOutput ? dScaleFactor : 1.0;
 
@@ -420,7 +438,9 @@ void UIMachineView::setMaximumGuestSize(const QSize &minimumSizeHint /* = QSize(
             maxSize = m_fixedMaxGuestSize;
             break;
         case MaximumGuestScreenSizePolicy_Automatic:
-            maxSize = calculateMaxGuestSize().expandedTo(minimumSizeHint);
+            /* The calculated size is in widget coordinates, the limit and the hint are in guest-screen pixels.
+             * Without this conversion a Retina host would refuse modes which easily fit its screen. */
+            maxSize = scaledBackward(calculateMaxGuestSize()).expandedTo(minimumSizeHint);
             break;
         case MaximumGuestScreenSizePolicy_Any:
             /* (0, 0) means any of course. */
@@ -1040,17 +1060,67 @@ void UIMachineView::sltDesktopResized()
     setMaximumGuestSize();
 }
 
+#ifdef VBOX_WS_MAC
+bool UIMachineView::updateGuestScale(double dDevicePixelRatio)
+{
+    bool fApplied = false;
+    ulong cMonitors = 0;
+    if (   m_uScreenId == 0 && uimachine()->acquireMonitorCount(cMonitors) && cMonitors == 1
+        && !gEDataManager->isScaleFactorSelected(uiCommon().managedVMUuid()))
+    {
+        CMachine &comMachine = uimachine()->uisession()->machine();
+        if (comMachine.GetGuestPropertyValue(VBOX_DISPLAY_SCALE_CAPABILITY) == VBOX_DISPLAY_SCALE_GNOME_SINGLE)
+        {
+            const int iPercent = qBound(1, qRound(dDevicePixelRatio), 3) * 100;
+            const QString strPrefix = QString::number(iPercent) + ':';
+            if (!m_strGuestScaleRequest.startsWith(strPrefix))
+            {
+                m_strGuestScaleRequest = strPrefix + QUuid::createUuid().toString(QUuid::WithoutBraces);
+                comMachine.SetGuestProperty(VBOX_DISPLAY_SCALE_REQUEST, m_strGuestScaleRequest, "TRANSIENT,RDONLYGUEST");
+                if (!comMachine.isOk())
+                    m_strGuestScaleRequest.clear();
+            }
+            fApplied =    !m_strGuestScaleRequest.isEmpty()
+                       && comMachine.GetGuestPropertyValue(VBOX_DISPLAY_SCALE_APPLIED) == m_strGuestScaleRequest;
+        }
+    }
+    else
+        m_strGuestScaleRequest.clear();
+    const bool fChanged = m_fGuestScaleApplied != fApplied;
+    m_fGuestScaleApplied = fApplied;
+    return fChanged;
+}
+
+void UIMachineView::sltCheckGuestScale()
+{
+    if (!frameBuffer())
+        return;
+    if (updateGuestScale(UIDesktopWidgetWatchdog::devicePixelRatio(machineWindow())))
+    {
+        applyMachineViewScaleFactor();
+        handleScaleChange();
+        setMaximumGuestSize();
+        adjustGuestScreenSize();
+        updateScaledPausePixmap();
+        viewport()->update();
+    }
+}
+#endif /* VBOX_WS_MAC */
+
 void UIMachineView::sltHandleScaleFactorChange(const QUuid &uMachineID)
 {
     /* Skip unrelated machine IDs: */
     if (uMachineID != uiCommon().managedVMUuid())
         return;
 
-    /* Acquire selected scale-factor: */
-    double dScaleFactor = gEDataManager->scaleFactor(uiCommon().managedVMUuid(), (int)m_uScreenId);
-
     /* Take the device-pixel-ratio into account: */
     const double dDevicePixelRatio = frameBuffer()->devicePixelRatio();
+#ifdef VBOX_WS_MAC
+    updateGuestScale(dDevicePixelRatio);
+#endif
+
+    /* Acquire selected scale-factor: */
+    double dScaleFactor = selectedScaleFactor(dDevicePixelRatio);
     const bool fUseUnscaledHiDPIOutput = dScaleFactor != dDevicePixelRatio;
     dScaleFactor = fUseUnscaledHiDPIOutput ? dScaleFactor : 1.0;
 
@@ -1221,6 +1291,9 @@ UIMachineView::UIMachineView(UIMachineWindow *pMachineWindow, ulong uScreenId)
     , m_pMachineWindow(pMachineWindow)
     , m_uScreenId(uScreenId)
     , m_previousState(KMachineState_Null)
+#ifdef VBOX_WS_MAC
+    , m_fGuestScaleApplied(false)
+#endif
     , m_iHostScreenNumber(0)
     , m_enmMaximumGuestScreenSizePolicy(MaximumGuestScreenSizePolicy_Automatic)
     , m_u64MaximumGuestSize(0)
@@ -1408,6 +1481,21 @@ void UIMachineView::prepareConnections()
     /* Scaling-optimization change: */
     connect(gEDataManager, &UIExtraDataManager::sigScalingOptimizationTypeChange,
             this, &UIMachineView::sltHandleScalingOptimizationChange);
+
+#ifdef VBOX_WS_MAC
+    if (m_uScreenId == 0)
+    {
+        QTimer *pScaleTimer = new QTimer(this);
+        connect(pScaleTimer, &QTimer::timeout, this, &UIMachineView::sltCheckGuestScale);
+        connect(uimachine(), &UIMachine::sigGuestPropertyChange, this,
+                [this](const QString &strName, const QString &)
+                {
+                    if (strName == VBOX_DISPLAY_SCALE_CAPABILITY || strName == VBOX_DISPLAY_SCALE_APPLIED)
+                        sltCheckGuestScale();
+                });
+        pScaleTimer->start(2000);
+    }
+#endif
 
     /* Action-pool connections: */
     UIActionPoolRuntime *pActionPoolRuntime = qobject_cast<UIActionPoolRuntime*>(actionPool());

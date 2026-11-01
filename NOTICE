@@ -1,0 +1,31 @@
+Elseport — independent development work
+
+Baseline: VirtualBox 7.2.97r175247, public Git mirror revision
+b6bea72111fcff48f31c57c9f66365b1d3301bb9.
+
+This source tree has been modified. Changes during 2026, including work
+recorded on 2026-10-31 and 2026-11-01, concern desktop setup, host integration, device
+compatibility, lifecycle handling, development packaging, and the Elseport
+identity and interface prototype. The prototype has not replaced the
+frontend. This notice does not declare unfinished features complete.
+
+Existing copyright and license notices remain applicable. Independent
+contributions retain their respective owners' rights. The project name
+and this notice do not imply a copyright assignment.
+
+Covered code is licensed under GNU General Public License version 3.
+See COPYING for the complete license and upstream interface exception.
+Third-party components retain their respective licenses. See
+doc/elseport/DEPENDENCIES.md and the components' original notices.
+
+The Elseport wordmark uses Manrope under SIL Open Font License 1.1.
+The font and its original license are included under brand/type/.
+
+Elseport is not affiliated with, endorsed by or sponsored by Oracle.
+Oracle and VirtualBox are trademarks of Oracle and/or its affiliates.
+Mac and macOS are trademarks of Apple Inc. Ubuntu is a trademark of
+Canonical Ltd. Trademark references do not grant trademark rights.
+
+An internal development bundle is not a public release. Before conveying
+a binary, its distributor must satisfy the applicable source, license,
+attribution and other distribution obligations for that exact build.

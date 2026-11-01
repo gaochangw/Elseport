@@ -48,8 +48,11 @@ ifndef VBOX_ONLY_SDK
   	$(if $(VBOX_WITH_GUEST_CONTROL),tstGuestCtrlPaths,) \
   	tstMediumLock \
   	tstSafeArray \
+  	tstObjectsTracker \
   	tstClipboardAPI \
   	tstClipboardMain \
+  	$(if $(intersects darwin,$(KBUILD_TARGET)),tstClipboardPasteboard,) \
+  	$(if $(intersects darwin,$(KBUILD_TARGET)),tstClipboardFileCache,) \
   	tstClipboardMain2HostSvc \
   	tstRecording \
   	tstSettings \
@@ -381,6 +384,46 @@ if defined(VBOX_WITH_TESTCASES) && !defined(VBOX_ONLY_SDK)
   TESTING += $(tstClipboardAPI_0_OUTDIR)/tstClipboardAPI.run
  endif
 endif
+
+
+#
+# tstClipboardPasteboard - Uses a private pasteboard, so it leaves the user's clipboard alone.
+#
+tstClipboardPasteboard_TEMPLATE = VBoxMainTstExe
+tstClipboardPasteboard_INCS     = ../include
+tstClipboardPasteboard_DEFS     = VBOX_WITH_SHARED_CLIPBOARD
+ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+ tstClipboardPasteboard_DEFS   += VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+endif
+tstClipboardPasteboard_SOURCES  = \
+	../src-client/darwin/darwin-pasteboard.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-common.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-helper.cpp \
+	tstClipboardPasteboard.cpp
+tstClipboardPasteboard_LDFLAGS  = -framework ImageIO
+
+# Receives files from a local test provider; never opens a pasteboard.
+tstClipboardFileCache_TEMPLATE = VBoxMainTstExe
+tstClipboardFileCache_INCS = ../include
+tstClipboardFileCache_DEFS = VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
+tstClipboardFileCache_SOURCES = \
+	tstClipboardFileCache.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-file-cache-posix.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-common.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-helper.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-path.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-transfers.cpp \
+	$(PATH_ROOT)/src/VBox/GuestHost/SharedClipboard/clipboard-transfers-provider-local.cpp
+
+
+#
+# tstObjectsTracker - Interface release can re-enter the collector.
+#
+tstObjectsTracker_TEMPLATE = VBoxMainTstExe
+tstObjectsTracker_INCS     = ../include
+tstObjectsTracker_SOURCES  = \
+	tstObjectsTracker.cpp \
+	../src-all/ObjectsTracker.cpp
 
 
 #

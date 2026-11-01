@@ -7758,7 +7758,9 @@ else # the GCC guys:
   TEMPLATE_VBoxMainExe_SDKS             += $(VBOX_DARWIN_DEF_SDK_SDKS)
   TEMPLATE_VBoxMainExe_DEFS             += $(VBOX_DARWIN_DEF_SDK_DEFS)
   TEMPLATE_VBoxMainExe_CFLAGS           += $(VBOX_DARWIN_DEF_SDK_CFLAGS)
-  TEMPLATE_VBoxMainExe_CXXFLAGS         += $(VBOX_DARWIN_DEF_SDK_CXXFLAGS)
+  # Note! -fno-builtin-wcslen: With -fshort-wchar clang may turn UTF-16 length loops into wcslen
+  #       calls, but wcslen in the macOS libc works on 32-bit units and would return bogus lengths.
+  TEMPLATE_VBoxMainExe_CXXFLAGS         += $(VBOX_DARWIN_DEF_SDK_CXXFLAGS) -fno-builtin-wcslen
   TEMPLATE_VBoxMainExe_OBJCFLAGS        += $(VBOX_DARWIN_DEF_SDK_OBJCFLAGS)
   TEMPLATE_VBoxMainExe_OBJCXXFLAGS      += $(VBOX_DARWIN_DEF_SDK_OBJCXXFLAGS)
   TEMPLATE_VBoxMainExe_LDFLAGS.darwin   += -bind_at_load
@@ -8469,10 +8471,11 @@ ifdef VBOX_WITH_QTGUI
    TEMPLATE_VBoxQtGuiExe_SDKS.darwin        += $(VBOX_DARWIN_DEF_SDK_SDKS)
    TEMPLATE_VBoxQtGuiExe_DEFS.darwin        += $(VBOX_DARWIN_DEF_SDK_DEFS)
    TEMPLATE_VBoxQtGuiExe_CFLAGS.darwin      += $(VBOX_DARWIN_DEF_SDK_CFLAGS)
-   TEMPLATE_VBoxQtGuiExe_CXXFLAGS.darwin    += $(VBOX_DARWIN_DEF_SDK_CXXFLAGS)
+   # Note! -fno-builtin-wcslen: See TEMPLATE_VBoxMainExe.
+   TEMPLATE_VBoxQtGuiExe_CXXFLAGS.darwin    += $(VBOX_DARWIN_DEF_SDK_CXXFLAGS) -fno-builtin-wcslen
    TEMPLATE_VBoxQtGuiExe_PCHFLAGS.darwin    += $(TEMPLATE_VBoxQtGuiExe_CXXFLAGS.darwin)
    TEMPLATE_VBoxQtGuiExe_OBJCFLAGS.darwin   += $(VBOX_DARWIN_DEF_SDK_OBJCFLAGS)
-   TEMPLATE_VBoxQtGuiExe_OBJCXXFLAGS.darwin += $(VBOX_DARWIN_DEF_SDK_OBJCXXFLAGS)
+   TEMPLATE_VBoxQtGuiExe_OBJCXXFLAGS.darwin += $(VBOX_DARWIN_DEF_SDK_OBJCXXFLAGS) -fno-builtin-wcslen
    TEMPLATE_VBoxQtGuiExe_LDFLAGS.darwin     += $(VBOX_DARWIN_DEF_SDK_LDFLAGS) -bind_at_load -Wl,-headerpad_max_install_names
    TEMPLATE_VBoxQtGuiExe_LATE_LIBS +=
    TEMPLATE_VBoxQtGuiExe_LIBPATH +=

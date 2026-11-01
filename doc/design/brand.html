@@ -1,0 +1,31 @@
+<!doctype html>
+<!-- $Id$ -->
+<!-- Elseport: original identity and usage preview. -->
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Elseport · 品牌设计</title>
+    <link rel="icon" href="prototype/assets/mark.svg" type="image/svg+xml">
+    <style>
+        @font-face{font-family:Manrope;src:url(prototype/assets/Manrope.ttf);font-weight:200 800}
+        *{box-sizing:border-box}body{margin:0;background:#eeeef5;color:#242337;font:14px/1.65 -apple-system,BlinkMacSystemFont,sans-serif}
+        a{color:#6252cf;text-decoration:none}header{max-width:1200px;margin:34px auto 20px;display:flex;justify-content:space-between;align-items:center}header span{color:#777387;font-size:12px}
+        main{max-width:1200px;margin:auto;background:white;border:1px solid #e4e1ed;border-radius:20px;overflow:hidden;box-shadow:0 25px 70px #3430520d}
+        .hero{padding:65px 65px 48px;display:flex;align-items:center;justify-content:space-between;gap:70px;min-height:365px}.hero h1{font-size:38px;line-height:1.2;letter-spacing:-1px;margin:18px 0}.eyebrow{font:600 11px/1.5 Manrope,sans-serif;letter-spacing:2px;color:#8a8199}.hero p{color:#777387;max-width:380px}.hero>img{width:216px;height:216px;margin-right:35px;filter:drop-shadow(0 25px 25px #5345b528)}
+        .logo-pair{display:grid;grid-template-columns:1fr 1fr}.logo-tile{height:220px;display:grid;place-items:center;position:relative;border-top:1px solid #e5e2ed;background:#faf9fc}.logo-tile.dark{background:#20212e;border-top-color:#20212e}.logo-tile img{width:65%;max-width:370px}.tile-label{position:absolute;bottom:20px;left:26px;color:#898297;font:11px/1.5 Manrope,sans-serif}.dark .tile-label{color:#a6a0b8}
+        .details{display:grid;grid-template-columns:1.3fr 1fr;gap:65px;padding:40px 65px}.details h2{font-size:16px;margin:0 0 10px}.details p{font-size:12px;color:#716a80;margin:0 0 22px}.swatches{display:flex;gap:10px;margin:0 0 27px}.swatch{flex:1;height:76px;border-radius:10px;display:flex;align-items:flex-end;padding:10px;color:white;font:11px/1.5 Manrope,sans-serif}.swatch:nth-child(2){color:#35285c}.type{font:650 34px/1.4 Manrope,sans-serif;letter-spacing:-1px}.type small{font:12px/1.5 -apple-system,sans-serif;letter-spacing:0;display:block;color:#8a8199;margin-top:5px}.geometry{display:flex;align-items:center;gap:23px}.geometry img{width:78px;height:78px}.mono{filter:grayscale(1)}footer{border-top:1px solid #eeeaf4;padding:19px 65px;color:#8b8499;display:flex;justify-content:space-between;font-size:11px}
+        @media(max-width:800px){header{margin:22px}.hero{padding:32px;gap:24px}.hero>img{width:130px;height:130px;margin:0}.hero h1{font-size:28px}.details{padding:32px;gap:25px}.logo-tile{height:170px}footer{padding:18px 30px}}
+        @media(max-width:540px){.hero{flex-direction:column-reverse;align-items:flex-start}.logo-pair,.details{grid-template-columns:1fr}.logo-tile{height:180px}.details{gap:20px}footer{gap:20px}}
+    </style>
+</head>
+<body>
+    <header><a href="prototype/">← 体验界面原型</a><span>ELSEPORT · IDENTITY 01</span></header>
+    <main>
+        <section class="hero"><div><div class="eyebrow">AN OPENING TO MORE</div><h1>一台电脑，<br>更多可能。</h1><p>一个向右敞开的 E，一枚越过边缘的圆点。<br>从此刻的工作空间，走向下一个可能。</p></div><img src="prototype/assets/app-icon.svg" alt="Elseport 应用图标"></section>
+        <div class="logo-pair"><div class="logo-tile"><img src="prototype/assets/logo-light.svg" alt="Elseport 浅色背景标志"><span class="tile-label">LIGHT SURFACE</span></div><div class="logo-tile dark"><img src="prototype/assets/logo-dark.svg" alt="Elseport 深色背景标志"><span class="tile-label">DARK SURFACE</span></div></div>
+        <section class="details"><div><h2>留下清晰的识别</h2><p>曲线连接三道横向笔画，形成一个敞开的入口。独立圆点象征下一处空间。小尺寸保留完整轮廓，单色同样可辨认。</p><div class="geometry"><img src="prototype/assets/mark.svg" alt="单独标记"><img class="mono" src="prototype/assets/mark.svg" alt="单色识别预览"></div><p style="margin-top:18px">标记四周至少留出半个圆点直径的空白。字标最小宽度 100 px；小于此宽度只使用标记。不要拉伸、描边、倾斜字标或添加投影。</p></div><div><h2>少量颜色，稳定使用</h2><div class="swatches"><div class="swatch" style="background:#6659d8">#6659D8</div><div class="swatch" style="background:#c4f0e1">#C4F0E1</div><div class="swatch" style="background:#20212e">#20212E</div></div><div class="type">Elseport<small>Manrope · 650 · 字标以矢量轮廓交付</small></div></div></section>
+        <footer><span>原创矢量设计 · 品牌与 UI 审阅稿</span><span>应用图标、单色版、深浅版、菜单栏资源均已提供</span></footer>
+    </main>
+</body>
+</html>
