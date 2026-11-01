@@ -1,32 +1,32 @@
 <!doctype html>
 <!-- $Id$ -->
-<!-- Elseport: private local review entry point. -->
-<html lang="zh-CN">
+<!-- Elseport: local interface preview. -->
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Elseport · 品牌与界面</title>
+    <title>Elseport · Interface preview</title>
     <link rel="icon" href="prototype/assets/mark.svg" type="image/svg+xml">
     <style>
         @font-face{font-family:Manrope;src:url(prototype/assets/Manrope.ttf);font-weight:200 800}
         *{box-sizing:border-box}body{margin:0;background:#eeeef5;color:#242337;font:14px/1.6 -apple-system,BlinkMacSystemFont,sans-serif}a{text-decoration:none;color:inherit}
         .wrap{max-width:1340px;margin:auto;padding:34px 35px 28px}header{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#777387;letter-spacing:.8px}header img{width:155px;height:auto}
         .hero{display:flex;align-items:center;justify-content:space-between;margin:43px 14px 33px}.hero h1{font-size:37px;letter-spacing:-1px;line-height:1.25;margin:0 0 12px}.hero p{color:#777387;margin:0;font-size:13px}.hero img{width:128px;height:128px;filter:drop-shadow(0 15px 20px #6659d826);transform:rotate(-6deg);margin-right:25px}
-        .screens{display:grid;grid-template-columns:1fr 1fr;gap:22px}.screen{border-radius:13px;overflow:hidden;background:white;box-shadow:0 14px 38px #36304d12;border:1px solid #e3dfee}.screen img{display:block;width:100%}.label{padding:12px 18px;font-size:11px;color:#777387;display:flex;justify-content:space-between}.dark{background:#20212e;border-color:#373747}.dark .label{color:#bab4cd}
-        .actions{display:flex;justify-content:space-between;align-items:center;margin:28px 10px 0;gap:24px}.buttons{display:flex;gap:10px}.button{padding:11px 19px;border-radius:9px;background:#6252cf;color:#fff;font-size:13px;font-weight:600;display:inline-block}.button.secondary{color:#5142b5;background:#e4def5}.note{font-size:11px;color:#777387;text-align:right}.specs{margin-top:28px;padding-top:18px;border-top:1px solid #dedae8;display:flex;gap:22px;font-size:11px;color:#777387}.specs a:hover{text-decoration:underline}a:focus-visible{outline:3px solid #9b8de8;outline-offset:4px}
-        @media(max-width:850px){.wrap{padding:25px}.hero{margin:32px 0}.hero h1{font-size:28px}.hero img{width:95px;height:95px;margin:0}.screens{grid-template-columns:1fr}.actions{align-items:flex-start;flex-direction:column}.note{text-align:left}.specs{flex-wrap:wrap}}
+        .screens{display:block}.screen{display:block;border-radius:13px;overflow:hidden;background:white;box-shadow:0 14px 38px #36304d12;border:1px solid #e3dfee}.screen img{display:block;width:100%;height:auto}.label{padding:12px 18px;font-size:12px;color:#777387;display:flex;justify-content:space-between}
+        .actions{display:flex;justify-content:space-between;align-items:center;margin:28px 10px 0;gap:24px}.buttons{display:flex;gap:10px;flex-wrap:wrap}.button{padding:11px 19px;border-radius:9px;background:#6252cf;color:#fff;font-size:13px;font-weight:600;display:inline-block}.button.secondary{color:#5142b5;background:#e4def5}.note{font-size:11px;color:#777387;text-align:right}.specs{margin-top:28px;padding-top:18px;border-top:1px solid #dedae8;display:flex;gap:22px;font-size:11px;color:#777387}.specs a:hover{text-decoration:underline}a:focus-visible{outline:3px solid #9b8de8;outline-offset:4px}
+        @media(max-width:850px){.wrap{padding:25px}.hero{margin:32px 0}.hero h1{font-size:28px}.hero img{width:95px;height:95px;margin:0}.actions{align-items:flex-start;flex-direction:column}.note{text-align:left}.specs{flex-wrap:wrap}}
     </style>
 </head>
 <body>
     <main class="wrap">
-        <header><img src="prototype/assets/logo-light.svg" alt="Elseport"><span>品牌与界面 · 设计预览 01</span></header>
-        <section class="hero"><div><h1>一台电脑，更多可能。</h1><p>一个打开的 E，一处新的工作空间。<br>从安装到继续使用，让下一步始终清楚。</p></div><img src="prototype/assets/app-icon.svg" alt="Elseport 应用图标"></section>
-        <section class="screens" aria-label="浅色与深色管理器预览">
-            <a class="screen" href="prototype/?lang=zh&theme=light"><img src="previews/window-light.png" alt="浅色管理器，可进入交互原型"><div class="label"><span>浅色外观</span><span>查看交互原型 ↗</span></div></a>
-            <a class="screen dark" href="prototype/?lang=zh&theme=dark"><img src="previews/window-dark.png" alt="深色管理器，可进入交互原型"><div class="label"><span>深色外观</span><span>查看交互原型 ↗</span></div></a>
+        <header><img src="prototype/assets/logo-light.svg" alt="Elseport"><span data-copy="eyebrow">Brand and interface · Design preview 01</span></header>
+        <section class="hero"><div><h1 data-copy="title">One computer. More possibilities.</h1><p data-copy="intro">A new workspace, from setup to picking up where you left off.</p></div><img src="prototype/assets/app-icon.svg" alt="Elseport app icon" id="app-icon"></section>
+        <section class="screens" aria-label="Light interface preview" id="screens">
+            <a class="screen" href="prototype/?lang=en&theme=light" id="screen-link"><img src="previews/readme-light-en.png" alt="Elseport in English, light appearance" id="screen-image" width="2560" height="1608"><div class="label"><span data-copy="appearance">Light appearance</span><span data-copy="open">Explore the interactive preview ↗</span></div></a>
         </section>
-        <section class="actions"><div class="buttons"><a class="button" href="prototype/">体验界面原型 →</a><a class="button secondary" href="brand.html">查看品牌设计</a></div><p class="note">20 个画面状态 · 中英双语 · 深浅外观<br>全部为设计模拟，不连接真实虚拟电脑。</p></section>
-        <footer class="specs"><a href="DESIGN.md">设计规范</a><a href="IMPLEMENTATION-DECISION.md">实现方向</a><a href="COPY.md">中英文文案</a><a href="VALIDATION.md">检查记录</a></footer>
+        <section class="actions"><div class="buttons"><a class="button" href="prototype/?lang=en&theme=light" id="prototype-link" data-copy="try">Try the interface →</a><a class="button secondary" href="brand.html" data-copy="brand">View the brand design</a></div><p class="note" data-copy="note">Design simulation. No real virtual computers are connected.</p></section>
+        <footer class="specs"><a href="DESIGN.md" data-copy="spec">Design specification</a><a href="IMPLEMENTATION-DECISION.md" data-copy="implementation">Implementation notes</a><a href="COPY.md" data-copy="copy">Interface copy</a><a href="VALIDATION.md" data-copy="validation">Validation notes</a><a href="?lang=zh" id="language-link" lang="zh-CN">简体中文</a></footer>
     </main>
+    <script src="preview.js"></script>
 </body>
 </html>

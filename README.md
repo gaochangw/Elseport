@@ -5,9 +5,9 @@ from the open-source code of VirtualBox.
 
 [简体中文](README.zh-CN.md) · [Build](doc/elseport/BUILDING.md) · [Security](SECURITY.md)
 
-![Elseport interface design in light and dark appearances](doc/design/previews/overview.png)
+![Elseport interface design in English, light appearance](doc/design/previews/readme-light-en.png)
 
-*Design preview. This interface has not yet replaced the existing frontend.*
+*Light interface design preview. This interface has not yet replaced the existing frontend.*
 
 ## Development status
 
@@ -50,7 +50,7 @@ This preview is local and does not create or control virtual computers:
 python3 -m http.server 8765 --bind 127.0.0.1 --directory doc/design
 ```
 
-Open `http://127.0.0.1:8765/` and use example data only. See the
+Open `http://127.0.0.1:8765/?lang=en` and use example data only. See the
 [design specification](doc/design/DESIGN.md) and
 [prototype validation](doc/design/VALIDATION.md).
 

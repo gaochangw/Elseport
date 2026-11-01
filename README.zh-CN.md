@@ -4,9 +4,9 @@
 
 [English](README.md) · [源码构建](doc/elseport/BUILDING.md) · [安全报告](SECURITY.md)
 
-![Elseport 深浅色界面设计预览](doc/design/previews/overview.png)
+![Elseport 中文浅色界面设计预览](doc/design/previews/readme-light-zh.png)
 
-*这是设计预览，新的 Elseport 界面尚未替换现有前端。*
+*这是浅色界面设计预览，新的 Elseport 界面尚未替换现有前端。*
 
 ## 当前状态
 
@@ -43,7 +43,7 @@
 python3 -m http.server 8765 --bind 127.0.0.1 --directory doc/design
 ```
 
-打开 `http://127.0.0.1:8765/`，表单只填写示例数据。
+打开 `http://127.0.0.1:8765/?lang=zh`，表单只填写示例数据。
 [设计规范](doc/design/DESIGN.md)和[检查记录](doc/design/VALIDATION.md)
 说明原型与实际产品的区别。
 
