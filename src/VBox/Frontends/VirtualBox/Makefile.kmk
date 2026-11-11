@@ -1690,6 +1690,26 @@ UICommon_SOURCES += $(VBOX_VIRTUALBOX_OUT_DIR)/VirtualBoxBrand.qrc
 $(VBOX_VIRTUALBOX_OUT_DIR)/VirtualBoxBrand.qrc_RCCFLAGS = -name BRAND
 
 
+# Native manager for the initial Apple Silicon host / Linux guest preview.
+ifeq ($(KBUILD_TARGET).$(KBUILD_TARGET_ARCH),darwin.arm64)
+ VirtualBox_DEFS += VBOX_WITH_ELSEPORT_UI
+ UICommon_DEFS += VBOX_WITH_ELSEPORT_UI
+ VirtualBoxVM_DEFS += VBOX_WITH_ELSEPORT_UI
+ VirtualBox_INCS += $(VBOX_VIRTUALBOX_SRC)/src/elseport
+ UICommon_INCS += $(VBOX_VIRTUALBOX_SRC)/src/elseport
+ VirtualBoxVM_INCS += $(VBOX_VIRTUALBOX_SRC)/src/elseport
+ UICommon_SOURCES += src/elseport/UIElseportIntegration.cpp
+ VirtualBox_QT_MOCHDRS += \
+	src/elseport/UIElseportPane.h \
+	src/elseport/UIElseportInstallWorker.h
+ VirtualBox_SOURCES += \
+	src/elseport/UIElseportPane.cpp \
+	src/elseport/UIElseportInstallWorker.cpp
+ UICommon_SOURCES += $(PATH_ROOT)/brand/elseport.qrc
+ $(PATH_ROOT)/brand/elseport.qrc_RCCFLAGS = -name ELSEPORT
+endif
+
+
 # Import the translation source from VBoxUI.pro and add the qt_xx_YY counterparts
 VirtualBox_QT_TRANSLATIONS := $(TRANSLATIONS) \
 	$(patsubst nls/VirtualBox_%.ts,nls/qt_%.ts, $(filter nls/VirtualBox_%.ts,$(TRANSLATIONS)))

@@ -27,7 +27,11 @@
 
 /* Qt includes: */
 #include <QGuiApplication>
+#include <QDir>
+#include <QUrl>
+#include "UIExtraDataManager.h"
 #include <QLabel>
+#include <QLocale>
 #include <QPainter>
 #include <QVBoxLayout>
 
@@ -103,6 +107,32 @@ void VBoxAboutDlg::paintEvent(QPaintEvent *)
 
 void VBoxAboutDlg::sltRetranslateUI()
 {
+#ifdef VBOX_WITH_ELSEPORT_UI
+    /* The temporary notification dialog is constructed before extra-data initialization. */
+    const QString strLanguage = gEDataManager ? gEDataManager->languageId() : QString();
+    const bool chinese = strLanguage.isEmpty()
+                       ? QLocale::system().language() == QLocale::Chinese
+                       : strLanguage.startsWith("zh");
+    setWindowTitle(chinese ? QString::fromUtf8("关于 Elseport") : QString("About Elseport"));
+    if (m_pLabel)
+    {
+        m_pLabel->setText(chinese
+            ? QString::fromUtf8("<h2>Elseport 0.1.0 Preview</h2><p>面向 Mac 的 Linux 工作空间。</p>"
+                                "<p>基于 VirtualBox 开源代码的独立项目，不受 Oracle 认可或赞助。"
+                                "相关版权归 Oracle 与各贡献者所有。</p><p>受覆盖的代码使用 GNU GPL 第三版，"
+                                "不提供担保。第三方组件保留各自许可证。</p>"
+                                "<p><a href='https://github.com/gaochangw/Elseport'>源码与构建说明</a> · "
+                                "<a href='https://www.gnu.org/licenses/gpl-3.0.html'>GNU GPL v3</a></p>")
+            : QString("<h2>Elseport 0.1.0 Preview</h2><p>A Linux workspace for your Mac.</p>"
+                      "<p>An independent project built from the open-source code of VirtualBox. "
+                      "Not endorsed or sponsored by Oracle. Respective copyrights remain with Oracle and contributors.</p>"
+                      "<p>Covered code is available under GNU GPL version 3, without warranty. "
+                      "Third-party components retain their own licenses.</p>"
+                      "<p><a href='https://github.com/gaochangw/Elseport'>Source and build instructions</a> · "
+                      "<a href='https://www.gnu.org/licenses/gpl-3.0.html'>GNU GPL v3</a></p>"));
+    }
+    return;
+#endif
     setWindowTitle(tr("VirtualBox - About"));
 
     if (m_pLabel)
@@ -142,6 +172,27 @@ void VBoxAboutDlg::prepare()
     /* Make sure the dialog is deleted on pseudo-parent destruction: */
     if (m_pPseudoParent)
         connect(m_pPseudoParent, &QObject::destroyed, this, &VBoxAboutDlg::close);
+
+#ifdef VBOX_WITH_ELSEPORT_UI
+    m_size = QSize(560, 430);
+    m_pixmap = QPixmap(m_size);
+    m_pixmap.fill(Qt::white);
+    m_pMainLayout = new QVBoxLayout(this);
+    m_pMainLayout->setContentsMargins(28, 24, 28, 20);
+    QLabel *iconLabel = new QLabel(this);
+    iconLabel->setPixmap(QIcon(":/elseport/app-icon.png").pixmap(72, 72));
+    m_pMainLayout->addWidget(iconLabel, 0, Qt::AlignHCenter);
+    m_pLabel = new QLabel(this);
+    m_pLabel->setWordWrap(true);
+    m_pLabel->setOpenExternalLinks(true);
+    m_pLabel->setStyleSheet("color:#242337;background:white;font-size:13px;");
+    m_pMainLayout->addWidget(m_pLabel, 1);
+    prepareCloseButton();
+    connect(&translationEventListener(), &UITranslationEventListener::sigRetranslateUI,
+            this, &VBoxAboutDlg::sltRetranslateUI);
+    sltRetranslateUI();
+    return;
+#endif
 
     /* Choose default image: */
     QString strPath(":/about.png");

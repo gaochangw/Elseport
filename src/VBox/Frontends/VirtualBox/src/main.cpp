@@ -27,6 +27,9 @@
 
 /* Qt includes: */
 #include <QApplication>
+#ifdef VBOX_WITH_ELSEPORT_UI
+# include <QStyleHints>
+#endif
 #include <QMessageBox>
 #ifdef VBOX_WS_NIX
 # ifndef Q_OS_SOLARIS
@@ -506,6 +509,13 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char ** /*envp*/)
 
         /* Create application: */
         QApplication a(argc, argv);
+#ifdef VBOX_WITH_ELSEPORT_UI
+        QCoreApplication::setApplicationName("Elseport");
+# if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Light);
+# endif
+        a.setWindowIcon(QIcon(":/elseport/app-icon.png"));
+#endif
 
 #ifdef VBOX_WS_MAC
         /* Disable menu icons on MacOS X host: */

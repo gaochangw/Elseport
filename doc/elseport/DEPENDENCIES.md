@@ -1,25 +1,47 @@
-# Dependency and license notes
+# Bundled dependencies
 
-This is a development inventory, not a complete release SBOM. The final
-distributable must be checked recursively, including plugins and static code.
+The preview bundles the shared libraries listed below. Exact upstream archives,
+Homebrew build recipes and formula patches accompany each binary release in
+the dependency-source archive. [dependencies.json](dependencies.json) records
+source URLs and SHA-256 values; component notices are also inside the app at
+`Contents/Resources/Licenses/third-party`.
 
-| Component | Current development evidence | License work |
-| --- | --- | --- |
-| VirtualBox base | 7.2.97r175247 plus local modifications | GPLv3; retain upstream notices and provide exact corresponding source |
-| Qt | Local GUI links Qt 6.12.0 Core, Gui, Widgets, PrintSupport, Help and StateMachine | Review the selected GPL/LGPL route, each module, plugins, patches and transitive dependencies |
-| Manrope | Bundled for the design and wordmark | SIL Open Font License 1.1, original notice under `brand/type/` |
+| Component | Packaged version |
+| --- | --- |
+| brotli | 1.2.1 |
+| dbus | 1.16.2_1 |
+| double-conversion | 3.4.0 |
+| freetype | 2.15.0 |
+| gettext | 1.0 |
+| glib | 2.90.1 |
+| graphite2 | 1.3.15 |
+| harfbuzz | 15.0.0_1 |
+| icu4c@79 | 79.1 |
+| jpeg-turbo | 3.2.0 |
+| libb2 | 0.98.1 |
+| libpng | 1.6.59 |
+| md4c | 0.6.0 |
+| openssl@4 | 4.1.0 |
+| pcre2 | 10.49 |
+| qtbase | 6.12.0_2 |
+| qtscxml | 6.12.0_1 |
+| qtsvg | 6.12.0_1 |
+| qttools | 6.12.0_1 |
+| zstd | 1.5.7_1 |
 
-The installed Qt also links third-party libraries such as ICU, GLib, OpenSSL,
-PCRE2, double-conversion, libb2 and zstd. A package inventory must record the
-actual versions and included notices; the top-level Qt version is insufficient.
-The development packaging helper audits load paths, not license compliance.
+The project source archive includes the pinned kBuild source, built-in libraries
+and their original license notices. Manrope is used in the design and wordmark
+under the SIL Open Font License 1.1, with its notice in `brand/type/`.
 
-Sources of authority are `COPYING`, each component's license files, the pinned
-source archives and the actual bundle inventory. Existing manual license tables
-may describe different component versions. Do not silently reuse them as a
-claim about this build.
+The packaging helper recursively inventories Mach-O load commands, includes
+the selected Qt plugins and rejects external non-system libraries. Its bundle
+manifest lists the exact files and hashes. macOS system frameworks and Apple
+development tools are used from the host and are not redistributed.
 
-System frameworks are used from macOS, not copied into the application. No
-proprietary Extension Pack or guest operating-system installation media belongs
-in the package. Build tools and source-download locations must remain documented
-without redistributing toolchains whose terms do not allow it.
+No proprietary Extension Pack or guest operating-system ISO is bundled. The
+Linux integration ISO contains this project’s source-built Guest Additions;
+Ubuntu installation media is downloaded separately by the user.
+
+Covered project code and the selected Qt distribution follow GNU GPL version 3;
+third-party components retain their own licenses. The source archives and
+original license files, rather than the table alone, define those terms.

@@ -1,0 +1,8 @@
+<!-- $Id$ -->
+<!-- Elseport native branding resources. SPDX-License-Identifier: GPL-3.0-only -->
+<RCC>
+    <qresource prefix="/elseport">
+        <file alias="mark.svg">mark.svg</file>
+        <file alias="app-icon.png">app-icon-1024.png</file>
+    </qresource>
+</RCC>

@@ -6,8 +6,9 @@ b6bea72111fcff48f31c57c9f66365b1d3301bb9.
 This source tree has been modified. Changes during 2026, including work
 recorded on 2026-10-31 and 2026-11-01, concern desktop setup, host integration, device
 compatibility, lifecycle handling, development packaging, and the Elseport
-identity and interface prototype. The prototype has not replaced the
-frontend. This notice does not declare unfinished features complete.
+identity, native Apple Silicon interface and guided Linux installation.
+The earlier interface prototype remains a design reference. This notice does
+not declare unfinished features complete.
 
 Existing copyright and license notices remain applicable. Independent
 contributions retain their respective owners' rights. The project name

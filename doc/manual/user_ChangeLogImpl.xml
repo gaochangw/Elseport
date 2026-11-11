@@ -80,6 +80,13 @@ Rules for adding a changelog entry to make them look more uniform:
     <itemizedlist>
 
       <listitem>
+        <para>Elseport (Apple Silicon preview): Added a native English and
+          Chinese interface for Linux computers, guided Ubuntu installation,
+          desktop previews, lifecycle controls, shared-folder settings and
+          restore points</para>
+      </listitem>
+
+      <listitem>
         <para>Building the OSE Edition: Implemented a new configure.py script which
           unifies the ./configure (non-Windows) and configure.vbs (Windows) scripts
           Please adjust your building process accordingly, as the compatibility wrapper
@@ -96,6 +103,11 @@ Rules for adding a changelog entry to make them look more uniform:
       <listitem>
         <para>GUI: Fixed recursive application termination on macOS skipping
           normal cleanup when using Qt 6</para>
+      </listitem>
+
+      <listitem>
+        <para>Linux unattended installation: Applied the selected time zone
+          to Ubuntu installations with Guest Additions enabled</para>
       </listitem>
 
       <listitem>

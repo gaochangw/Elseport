@@ -1,82 +1,79 @@
 # Elseport
 
-面向 Apple Silicon Mac 的独立桌面虚拟化项目，基于 VirtualBox 开源代码开发。
+**在 Mac 上，拥有自己的 Linux 工作空间。**
 
-[English](README.md) · [源码构建](doc/elseport/BUILDING.md) · [安全报告](SECURITY.md)
+Elseport 是面向 Apple Silicon 的独立桌面虚拟化项目，基于 VirtualBox
+开源代码开发。通过原生 macOS 界面创建 Ubuntu 电脑、打开桌面，再从上次
+停下的地方继续工作。
 
-![Elseport 中文浅色界面设计预览](doc/design/previews/readme-light-zh.png)
+[English](README.md) · [下载预览版](https://github.com/gaochangw/Elseport/releases) · [构建](doc/elseport/BUILDING.md) · [安全](SECURITY.md)
 
-*这是浅色界面设计预览，新的 Elseport 界面尚未替换现有前端。*
+![Elseport 中文原生界面，浅色外观](doc/elseport/previews/native-zh-CN.png)
 
-## 当前状态
+*实际应用中的 Linux 电脑，仅展示浅色外观。*
 
-这是以源码为主要交付的开源项目，目前没有标为正式支持的公开安装包。以下能力仅以实际验证的配置为准。
+## 试用预览版
 
-| 范围 | 状态 |
-| --- | --- |
-| 引导安装 Ubuntu | 已在本地开发分支验证；引导安装器未纳入这个初始公开源码快照 |
-| 虚拟电脑生命周期 | 已在专用测试环境验证启动、停止、暂停、保存与恢复路径 |
-| 共享文件夹 | 使用现有后端；只共享用户主动选择的目录 |
-| 新界面 | 中英文、深浅色交互原型，尚未接入正式应用 |
-| 文件复制粘贴 | macOS 与隔离的 Linux X11 剪贴板之间，双向文件和目录传输已验证；见[适用范围和限制](doc/elseport/INTEGRATION.md) |
-| Retina | 单显示器测试配置中，GNOME 自动 200% 缩放与原生像素输出已验证 |
-| 拖放 | 已实现 macOS 数据准备和转换；Finder 互操作仍需人工验证 |
-| Linux 3D | 使用源码构建的增强工具通过基础绘制和像素检查；默认关闭，应用和游戏兼容性未验证 |
-| 分发 | 源码与构建说明；本地开发打包为可选项 |
+首个预览版面向 **macOS 27.0 或更新系统的 Apple Silicon Mac**，客体为
+Linux Arm64。已测试 Apple M2、macOS 27.0.1 与 Ubuntu 26.04.1 Arm64；
+其他配置仍需单独验证。
 
-## 系统要求
+1. 从 [Releases](https://github.com/gaochangw/Elseport/releases) 下载 macOS Arm64 磁盘映像。
+2. 打开映像，将 **Elseport.app** 拖入 Applications。
+3. 打开 Elseport，选择“创建虚拟电脑”，设置 Ubuntu 账户。
+   镜像栏留空即可自动下载并校验 Ubuntu，也可以选择已有的 Linux Arm64 ISO。
 
-开发验证基线为 Apple M2、macOS 27.0.1，客体示例为 Ubuntu 26.04.1 Arm64。
-其他硬件和版本需要单独验证。本项目不提供异构架构的系统模拟器。
+建议为全新 Ubuntu 安装预留至少 20 GB 空间。默认虚拟磁盘按实际使用增长，
+不会一开始就占满 64 GB 上限。
+自动安装需要联网获取 Ubuntu 软件包与更新。
 
-当前本地开发包受 Qt 依赖限制，最低需要 macOS 27.0；实际测试版本为 27.0.1。
+这是 **alpha 预览版**，使用本地签名，**未进行公证**。macOS 可能阻止打开
+下载的副本，请阅读[安装与发布说明](doc/elseport/RELEASE.md)。
+它不是 App Store 版本，也不是提供生产环境支持的发行版。
 
-源码构建需要 Apple 开发工具、kBuild、Qt 等依赖，详见
-[构建说明](doc/elseport/BUILDING.md)。3D 路径需要额外工具链。
-本地开发构建不等同于受支持的安装包。
+## 已接入的功能
 
-## 查看设计
+- 原生中英文界面，显示真实电脑列表、桌面预览与运行状态。
+- 引导式 Ubuntu 安装：下载校验、自选账户、内置 Linux 增强工具。
+  其他 Linux Arm64 镜像可手动安装。
+- 启动、暂停、继续、保存并关闭、正常关机与恢复点。
+- 内存、处理器、显示缩放以及指定目录共享。剪贴板和目录共享默认关闭；
+  共享目录默认只读，需明确开启后才能修改文件。
 
-原型在本机模拟界面，不会创建或操作真实虚拟电脑：
+测试范围见[原生界面说明](doc/elseport/NATIVE-UI.md)与
+[验证记录](doc/elseport/VALIDATION.md)。应用使用独立配置目录，
+不会自动导入已有 VirtualBox 安装中的电脑。
 
-```sh
-python3 -m http.server 8765 --bind 127.0.0.1 --directory doc/design
-```
+## 当前限制
 
-打开 `http://127.0.0.1:8765/?lang=zh`，表单只填写示例数据。
-[设计规范](doc/design/DESIGN.md)和[检查记录](doc/design/VALIDATION.md)
-说明原型与实际产品的区别。
+- 本版使用软件图形，应用和游戏的 3D 兼容性不在支持范围内。
+- 文件剪贴板需要 X11 客体桌面，不支持原生 Wayland 文件传输。
+  详见[桌面集成说明](doc/elseport/INTEGRATION.md)。
+- 外接显示器、辅助功能、宿主睡眠唤醒与实体输入设备仍需更多人工测试。
+- 修改界面语言后需要重新打开 Elseport。
+- 不包含、也不要求安装专有 Extension Pack。
 
-## 构建与测试
+## 源码与开发
 
-按[BUILDING.md](doc/elseport/BUILDING.md)操作。测试配置和虚拟电脑必须与已有安装隔离。
-助手脚本不自动安装系统依赖，也不修改系统的开发工具选择。
-[验证记录](doc/elseport/VALIDATION.md)列出了已完成的检查和仍需人工验证的范围。
+[构建指南](doc/elseport/BUILDING.md)包含 macOS 宿主、Linux 增强工具和打包流程。
+每个二进制版本同时提供对应项目源码、依赖源码与校验值，范围见
+[依赖说明](doc/elseport/DEPENDENCIES.md)。
 
-[发布清单](doc/elseport/RELEASE.md)列出正式分发前的条件。
-生成的本地开发磁盘映像是内部测试产物，不是公开下载。
+早期[交互设计原型](doc/design/DESIGN.md)保留为本地设计参考。
+实际应用使用 Qt Widgets 和现有虚拟机接口，没有嵌入 HTML 原型。
 
-## 已知限制
+## 来源与许可证
 
-- 新界面和品牌尚未完整集成。
-- Wayland 文件剪贴板、外接显示器、实际应用的图形兼容性仍需开发或验证。
-- Ubuntu 安装流程当前使用上游预编译的 Guest Additions 7.2.22。
-- 真实键盘、辅助功能、外接显示器和休眠唤醒需要人工测试。
-- 公开源码不需要上架 App Store，也不以 Apple 签名身份为前提。若以后提供公开二进制下载，需要单独完成打包、许可和平台验证。
-- 不附带专有 Extension Pack，当前范围也不依赖它。
-
-## 来源与许可
-
-基于 VirtualBox `7.2.97r175247`，Git 镜像修订
+本项目起始于 VirtualBox `7.2.97r175247`，Git 镜像版本
 `b6bea72111fcff48f31c57c9f66365b1d3301bb9`。上游以 SVN 为准，Git 镜像可能滞后。
 
-受覆盖的代码采用 GNU GPL 第三版；第三方组件保留各自许可证。详见
-[COPYING](COPYING)、[LICENSE.txt](LICENSE.txt)、[NOTICE](NOTICE)和
-[依赖说明](doc/elseport/DEPENDENCIES.md)。已有版权和许可声明予以保留。
+受覆盖的代码使用 GNU GPL 第三版。第三方组件保留各自许可证。
+见 [COPYING](COPYING)、[LICENSE.txt](LICENSE.txt)、[NOTICE](NOTICE)
+及[依赖说明](doc/elseport/DEPENDENCIES.md)。保留原有版权和许可声明。
 
 Elseport 与 Oracle 没有关联、认可或赞助关系。Oracle 和 VirtualBox 是 Oracle
-和/或其关联公司的商标。Mac、macOS 是 Apple Inc. 的商标。Ubuntu 是 Canonical
-Ltd. 的商标。名称用于说明来源或兼容背景，不代表获得认可。
+及其关联公司的商标；Mac、macOS 是 Apple Inc. 的商标；Ubuntu 是 Canonical Ltd.
+的商标。相关名称仅用于说明来源或兼容环境，不代表认可。
 
-贡献前阅读[CONTRIBUTING.md](CONTRIBUTING.md)。可能的安全问题按
-[SECURITY.md](SECURITY.md)私下处理，不在公开 issue、补丁或评论中披露。
+贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。不要在公开问题、补丁或评论中
+披露疑似漏洞，按 [SECURITY.md](SECURITY.md) 私下报告。

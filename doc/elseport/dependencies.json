@@ -1,0 +1,429 @@
+[
+  {
+    "name": "brotli",
+    "version": "1.2.1",
+    "sources": [
+      {
+        "file": "brotli/00-v1.2.1.tar.gz",
+        "url": "https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz",
+        "sha256": "98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f"
+      }
+    ],
+    "notices": [
+      "brotli-1.2.1__LICENSE"
+    ]
+  },
+  {
+    "name": "dbus",
+    "version": "1.16.2_1",
+    "sources": [
+      {
+        "file": "dbus/00-dbus-1.16.2.tar.xz",
+        "url": "https://dbus.freedesktop.org/releases/dbus/dbus-1.16.2.tar.xz",
+        "sha256": "0ba2a1a4b16afe7bceb2c07e9ce99a8c2c3508e5dec290dbb643384bd6beb7e2"
+      }
+    ],
+    "notices": [
+      "dbus-1.16.2__COPYING",
+      "dbus-1.16.2__LICENSES__LicenseRef-CMakeScripts.txt",
+      "dbus-1.16.2__LICENSES__LicenseRef-GAP.txt",
+      "dbus-1.16.2__LICENSES__LicenseRef-pycrypto-orig.txt"
+    ]
+  },
+  {
+    "name": "double-conversion",
+    "version": "3.4.0",
+    "sources": [
+      {
+        "file": "double-conversion/00-v3.4.0.tar.gz",
+        "url": "https://github.com/google/double-conversion/archive/refs/tags/v3.4.0.tar.gz",
+        "sha256": "42fd4d980ea86426e457b24bdfa835a6f5ad9517ddb01cdb42b99ab9c8dd5dc9"
+      }
+    ],
+    "notices": [
+      "double-conversion-3.4.0__COPYING",
+      "double-conversion-3.4.0__LICENSE"
+    ]
+  },
+  {
+    "name": "freetype",
+    "version": "2.15.0",
+    "sources": [
+      {
+        "file": "freetype/00-freetype-2.15.0.tar.xz",
+        "url": "https://downloads.sourceforge.net/project/freetype/freetype2/2.15.0/freetype-2.15.0.tar.xz",
+        "sha256": "93cd47eb719c325107f2d3cf087d06299e944c3b48a40b55537302304dea1dd5"
+      }
+    ],
+    "notices": [
+      "freetype-2.15.0__LICENSE.TXT"
+    ]
+  },
+  {
+    "name": "gettext",
+    "version": "1.0",
+    "sources": [
+      {
+        "file": "gettext/00-gettext-1.0.tar.gz",
+        "url": "https://ftpmirror.gnu.org/gnu/gettext/gettext-1.0.tar.gz",
+        "sha256": "85d99b79c981a404874c02e0342176cf75c7698e2b51fe41031cf6526d974f1a"
+      }
+    ],
+    "notices": [
+      "gettext-1.0__COPYING",
+      "gettext-1.0__gettext-runtime__COPYING",
+      "gettext-1.0__gettext-runtime__libasprintf__COPYING",
+      "gettext-1.0__gettext-tools__COPYING",
+      "gettext-1.0__gettext-tools__gnulib-lib__libxml__COPYING",
+      "gettext-1.0__gnulib-local__lib__libxml__COPYING",
+      "gettext-1.0__libtextstyle__COPYING",
+      "gettext-1.0__libtextstyle__lib__libxml__COPYING",
+      "gettext-1.0__gettext-runtime__intl__COPYING.LIB",
+      "gettext-1.0__gettext-runtime__libasprintf__COPYING.LIB",
+      "gettext-1.0__gettext-tools__tree-sitter-0.23.2__LICENSE",
+      "gettext-1.0__gettext-tools__tree-sitter-0.23.2__lib__src__unicode__LICENSE",
+      "gettext-1.0__gettext-tools__tree-sitter-d-0.8.2__LICENSE",
+      "gettext-1.0__gettext-tools__tree-sitter-go-0.23.4__LICENSE",
+      "gettext-1.0__gettext-tools__tree-sitter-ocaml-0.23.2__LICENSE",
+      "gettext-1.0__gettext-tools__tree-sitter-rust-0.23.2__LICENSE",
+      "gettext-1.0__gettext-tools__tree-sitter-typescript-0.23.2__LICENSE"
+    ]
+  },
+  {
+    "name": "glib",
+    "version": "2.90.1",
+    "sources": [
+      {
+        "file": "glib/00-glib-2.90.1.tar.xz",
+        "url": "https://download.gnome.org/sources/glib/2.90/glib-2.90.1.tar.xz",
+        "sha256": "93c941aa17d5eb1d53fe838365f29a8b4e539c222a256d974ec8f30fc413e396"
+      },
+      {
+        "file": "glib/01-gobject-introspection-1.86.0.tar.xz",
+        "url": "https://download.gnome.org/sources/gobject-introspection/1.86/gobject-introspection-1.86.0.tar.xz",
+        "sha256": "920d1a3fcedeadc32acff95c2e203b319039dd4b4a08dd1a2dfd283d19c0b9ae"
+      }
+    ],
+    "notices": [
+      "glib-2.90.1__LICENSES__LicenseRef-old-glib-tests.txt",
+      "glib-2.90.1__docs__reference__COPYING",
+      "glib-2.90.1__subprojects__gvdb__COPYING"
+    ]
+  },
+  {
+    "name": "graphite2",
+    "version": "1.3.15",
+    "sources": [
+      {
+        "file": "graphite2/00-graphite2-1.3.15.tgz",
+        "url": "https://github.com/silnrsi/graphite/releases/download/1.3.15/graphite2-1.3.15.tgz",
+        "sha256": "c6bc8b4252724665297f7cad0c55897285c673f9b8e6db3522ace833593fe0b1"
+      }
+    ],
+    "notices": [
+      "graphite2-1.3.15__COPYING",
+      "graphite2-1.3.15__LICENSE",
+      "graphite2-1.3.15__debian-src__copyright",
+      "graphite2-1.3.15__site__LICENSE"
+    ]
+  },
+  {
+    "name": "harfbuzz",
+    "version": "15.0.0_1",
+    "sources": [
+      {
+        "file": "harfbuzz/00-harfbuzz-15.0.0.tar.xz",
+        "url": "https://github.com/harfbuzz/harfbuzz/releases/download/15.0.0/harfbuzz-15.0.0.tar.xz",
+        "sha256": "968536e9abd782f07f7954044c0c4020199fcdd39b41d221ec42d2a3be4a44df"
+      },
+      {
+        "file": "harfbuzz/01-270b89df543a7e48e206a2d830c0e10e5265c630.ttf",
+        "url": "https://github.com/harfbuzz/harfbuzz/raw/fc0daafab0336b847ac14682e581a8838f36a0bf/test/shaping/fonts/sha1sum/270b89df543a7e48e206a2d830c0e10e5265c630.ttf",
+        "sha256": "9535d35dab9e002963eef56757c46881f6b3d3b27db24eefcc80929781856c77"
+      }
+    ],
+    "notices": [
+      "harfbuzz-15.0.0__COPYING",
+      "harfbuzz-15.0.0__perf__texts__COPYING",
+      "harfbuzz-15.0.0__src__ms-use__COPYING",
+      "harfbuzz-15.0.0__test__COPYING",
+      "harfbuzz-15.0.0__test__shape__data__aots__COPYING",
+      "harfbuzz-15.0.0__test__shape__data__text-rendering-tests__COPYING"
+    ]
+  },
+  {
+    "name": "icu4c@79",
+    "version": "79.1",
+    "sources": [
+      {
+        "file": "icu4c@79/00-icu4c-79.1-sources.tgz",
+        "url": "https://github.com/unicode-org/icu/releases/download/release-79.1/icu4c-79.1-sources.tgz",
+        "sha256": "06fa63ecb521048f8082f12ad988f6b678d90cbd88aafce24cbc94902b191d99"
+      }
+    ],
+    "notices": [
+      "icu__LICENSE"
+    ]
+  },
+  {
+    "name": "jpeg-turbo",
+    "version": "3.2.0",
+    "sources": [
+      {
+        "file": "jpeg-turbo/00-libjpeg-turbo-3.2.0.tar.gz",
+        "url": "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz",
+        "sha256": "6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e"
+      }
+    ],
+    "notices": [
+      "libjpeg-turbo-3.2.0__LICENSE.md",
+      "libjpeg-turbo-3.2.0__release__License.rtf",
+      "libjpeg-turbo-3.2.0__src__spng__LICENSE",
+      "libjpeg-turbo-3.2.0__src__spng__zlib__LICENSE",
+      "libjpeg-turbo-3.2.0__testimages__LICENSE.txt"
+    ]
+  },
+  {
+    "name": "libb2",
+    "version": "0.98.1",
+    "sources": [
+      {
+        "file": "libb2/00-libb2-0.98.1.tar.gz",
+        "url": "https://github.com/BLAKE2/libb2/releases/download/v0.98.1/libb2-0.98.1.tar.gz",
+        "sha256": "53626fddce753c454a3fea581cbbc7fe9bbcf0bc70416d48fdbbf5d87ef6c72e"
+      },
+      {
+        "file": "libb2/01-configure-big_sur.diff",
+        "url": "https://raw.githubusercontent.com/Homebrew/formula-patches/03cf8088210822aa2c1ab544ed58ea04c897d9c4/libtool/configure-big_sur.diff",
+        "sha256": "35acd6aebc19843f1a2b3a63e880baceb0f5278ab1ace661e57a502d9d78c93c"
+      }
+    ],
+    "notices": [
+      "libb2-0.98.1__COPYING"
+    ]
+  },
+  {
+    "name": "libpng",
+    "version": "1.6.59",
+    "sources": [
+      {
+        "file": "libpng/00-libpng-1.6.59.tar.xz",
+        "url": "https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.xz",
+        "sha256": "d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389"
+      }
+    ],
+    "notices": [
+      "libpng-1.6.59__LICENSE",
+      "libpng-1.6.59__contrib__gregbook__COPYING",
+      "libpng-1.6.59__contrib__gregbook__LICENSE",
+      "libpng-1.6.59__contrib__pngexif__LICENSE_MIT.txt",
+      "libpng-1.6.59__contrib__pngminus__LICENSE.txt"
+    ]
+  },
+  {
+    "name": "md4c",
+    "version": "0.6.0",
+    "sources": [
+      {
+        "file": "md4c/00-v0.6.0.tar.gz",
+        "url": "https://github.com/mity/md4c/archive/refs/tags/v0.6.0.tar.gz",
+        "sha256": "4d151298125a81da3b2efa2e0eed8bdb7a9318569804e4fa4d7a2375ab83ef70"
+      }
+    ],
+    "notices": [
+      "md4c-0.6.0__LICENSE.md",
+      "md4c-0.6.0__test__LICENSE.md"
+    ]
+  },
+  {
+    "name": "openssl@4",
+    "version": "4.1.0",
+    "sources": [
+      {
+        "file": "openssl@4/00-openssl-4.1.0.tar.gz",
+        "url": "https://github.com/openssl/openssl/releases/download/openssl-4.1.0/openssl-4.1.0.tar.gz",
+        "sha256": "50c17baf54cb008f6ce42d50deb4b28050a1aad711636cabd4b241c7e90cc2fd"
+      }
+    ],
+    "notices": [
+      "openssl-4.1.0__LICENSE.txt",
+      "openssl-4.1.0__external__perl__Text-Template-1.56__LICENSE",
+      "openssl-4.1.0__util__perl__OpenSSL__copyright.pm"
+    ]
+  },
+  {
+    "name": "pcre2",
+    "version": "10.49",
+    "sources": [
+      {
+        "file": "pcre2/00-pcre2-10.49.tar.bz2",
+        "url": "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.49/pcre2-10.49.tar.bz2",
+        "sha256": "53c156e1ba416a20da8e65395daa132da0d80e76910424caca3fcdae7831d384"
+      }
+    ],
+    "notices": [
+      "pcre2-10.49__COPYING",
+      "pcre2-10.49__deps__sljit__LICENSE",
+      "pcre2-10.49__cmake__COPYING-CMAKE-SCRIPTS",
+      "pcre2-10.49__LICENCE.md"
+    ]
+  },
+  {
+    "name": "qtbase",
+    "version": "6.12.0_2",
+    "sources": [
+      {
+        "file": "qtbase/00-qtbase-everywhere-src-6.12.0.tar.xz",
+        "url": "https://download.qt.io/official_releases/qt/6.12/6.12.0/submodules/qtbase-everywhere-src-6.12.0.tar.xz",
+        "sha256": "a951bd163c7b80fc6b8c88d7668fb56abf91c152373e13c10666763238131307"
+      },
+      {
+        "file": "qtbase/01-032643f99e090e0304ef935c2ee11c109d55c8a1.patch",
+        "url": "https://github.com/qt/qtbase/commit/032643f99e090e0304ef935c2ee11c109d55c8a1.patch?full_index=1",
+        "sha256": "6870a711a6fb7ce6367f541e10ec9fe2785bd7d7484a2b1759b8d1f082a3f09f"
+      },
+      {
+        "file": "qtbase/02-8c260a771ab1ed7d6cdb5f221854ee470e5790a6.patch",
+        "url": "https://github.com/qt/qtbase/commit/8c260a771ab1ed7d6cdb5f221854ee470e5790a6.patch?full_index=1",
+        "sha256": "07742a103f8928457f7df8140a0f88589980f81670ab0b6c646b19dc8cc36344"
+      }
+    ],
+    "notices": [
+      "qtbase-everywhere-src-6.12.0__LICENSES__LicenseRef-BSD-3-Clause-with-PCRE2-Binary-Like-Packages-Exception.txt",
+      "qtbase-everywhere-src-6.12.0__LICENSES__LicenseRef-ICC-License.txt",
+      "qtbase-everywhere-src-6.12.0__LICENSES__LicenseRef-Lcs-Telegraphics.txt",
+      "qtbase-everywhere-src-6.12.0__LICENSES__LicenseRef-Qt-Commercial.txt",
+      "qtbase-everywhere-src-6.12.0__LICENSES__LicenseRef-SHA1-Public-Domain.txt",
+      "qtbase-everywhere-src-6.12.0__cmake__3rdparty__extra-cmake-modules__COPYING-CMAKE-SCRIPTS",
+      "qtbase-everywhere-src-6.12.0__cmake__3rdparty__kwin__COPYING-CMAKE-SCRIPTS",
+      "qtbase-everywhere-src-6.12.0__doc__src__images__licensewizard-example.png",
+      "qtbase-everywhere-src-6.12.0__examples__widgets__dialogs__licensewizard__licensewizard.pro",
+      "qtbase-everywhere-src-6.12.0__examples__widgets__dialogs__licensewizard__licensewizard.qrc",
+      "qtbase-everywhere-src-6.12.0__examples__widgets__doc__src__licensewizard.qdoc",
+      "qtbase-everywhere-src-6.12.0__licenseRule.json",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__D3D12MemoryAllocator__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__VulkanMemoryAllocator__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__android__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__blake2__COPYING",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__double-conversion__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__easing__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__forkfd__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__freetype__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__gradle__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__harfbuzz-ng__COPYING",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__icc__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__libjpeg__COPYRIGHT.txt",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__libjpeg__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__libpng__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__libpsl__src__LICENSE.chromium",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__md4c__LICENSE.md",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__pcre2__LICENCE.md",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__pcre2__LICENSE-SLJIT",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__pixman__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__rfc6234__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__tinycbor__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__xcb__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__3rdparty__zlib__LICENSE",
+      "qtbase-everywhere-src-6.12.0__src__corelib__kernel__LICENSE.QEVENTDISPATCHER_CF.txt",
+      "qtbase-everywhere-src-6.12.0__src__dbus__LICENSE.LIBDBUS-1.txt",
+      "qtbase-everywhere-src-6.12.0__src__gui__opengl__LICENSE.KHRONOS.txt",
+      "qtbase-everywhere-src-6.12.0__src__gui__painting__LICENSE.QIMAGETRANSFORM.txt",
+      "qtbase-everywhere-src-6.12.0__src__gui__painting__LICENSE.XCONSORTIUM.txt",
+      "qtbase-everywhere-src-6.12.0__src__gui__rhi__LICENSE.MiniEngine.txt",
+      "qtbase-everywhere-src-6.12.0__src__gui__text__LICENSE.AGLFN.txt",
+      "qtbase-everywhere-src-6.12.0__src__gui__util__LICENSE.XSVG.txt",
+      "qtbase-everywhere-src-6.12.0__src__gui__vulkan__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__gui__vulkan__licenseheader.h.in",
+      "qtbase-everywhere-src-6.12.0__src__plugins__platforms__cocoa__LICENSE.COCOA.txt",
+      "qtbase-everywhere-src-6.12.0__src__testinternal__3rdparty__cmake__Copyright.txt",
+      "qtbase-everywhere-src-6.12.0__src__testlib__3rdparty__catch2__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__testlib__3rdparty__cycle__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__testlib__3rdparty__linux__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__testlib__3rdparty__valgrind__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__src__tools__moc__util__licenseheader.cpp.in",
+      "qtbase-everywhere-src-6.12.0__src__widgets__doc__images__licensewizard-flow.png",
+      "qtbase-everywhere-src-6.12.0__tests__auto__cmake__RunCMake__Sbom__custom_licenses__LicenseRef-TestLicense.txt",
+      "qtbase-everywhere-src-6.12.0__tests__auto__corelib__serialization__qxmlstream__LICENSE.XML-Test-Suite.txt",
+      "qtbase-everywhere-src-6.12.0__tests__manual__examples__widgets__tools__settingseditor__inifiles__licensepage.ini",
+      "qtbase-everywhere-src-6.12.0__tests__manual__rhi__shared__imgui__fonts__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__tests__manual__rhi__shared__imgui__imgui__LICENSE.txt",
+      "qtbase-everywhere-src-6.12.0__util__gradientgen__LICENSE.WEBGRADIENTS.txt"
+    ]
+  },
+  {
+    "name": "qtscxml",
+    "version": "6.12.0_1",
+    "sources": [
+      {
+        "file": "qtscxml/00-qtscxml-everywhere-src-6.12.0.tar.xz",
+        "url": "https://download.qt.io/official_releases/qt/6.12/6.12.0/submodules/qtscxml-everywhere-src-6.12.0.tar.xz",
+        "sha256": "adc04875b383256bcd5a412f6f249d363495ea037913ca8c96d723442be38383"
+      }
+    ],
+    "notices": [
+      "qtscxml-everywhere-src-6.12.0__LICENSES__LicenseRef-Qt-Commercial.txt",
+      "qtscxml-everywhere-src-6.12.0__LICENSES__LicenseRef-SHA1-Public-Domain.txt",
+      "qtscxml-everywhere-src-6.12.0__licenseRule.json",
+      "qtscxml-everywhere-src-6.12.0__tests__3rdparty__scion-tests__LICENSE.txt",
+      "qtscxml-everywhere-src-6.12.0__tests__3rdparty__scion-tests__scxml-test-framework__LICENSE.txt"
+    ]
+  },
+  {
+    "name": "qtsvg",
+    "version": "6.12.0_1",
+    "sources": [
+      {
+        "file": "qtsvg/00-qtsvg-everywhere-src-6.12.0.tar.xz",
+        "url": "https://download.qt.io/official_releases/qt/6.12/6.12.0/submodules/qtsvg-everywhere-src-6.12.0.tar.xz",
+        "sha256": "e4ab39534ec97987b1b9b60ef7f4d3253d5912a69f8c713a01753174a4029331"
+      }
+    ],
+    "notices": [
+      "qtsvg-everywhere-src-6.12.0__LICENSES__LicenseRef-Qt-Commercial.txt",
+      "qtsvg-everywhere-src-6.12.0__licenseRule.json",
+      "qtsvg-everywhere-src-6.12.0__tests__baseline__data__svg_12_testsuite__LICENSE.txt"
+    ]
+  },
+  {
+    "name": "qttools",
+    "version": "6.12.0_1",
+    "sources": [
+      {
+        "file": "qttools/00-qttools-everywhere-src-6.12.0.tar.xz",
+        "url": "https://download.qt.io/official_releases/qt/6.12/6.12.0/submodules/qttools-everywhere-src-6.12.0.tar.xz",
+        "sha256": "8dab8f3611496486a470ad5f115ceea584f36bc22a2b8b6f6ebdbafbb8160693"
+      }
+    ],
+    "notices": [
+      "qttools-everywhere-src-6.12.0__LICENSES__LicenseRef-Qt-Commercial.txt",
+      "qttools-everywhere-src-6.12.0__licenseRule.json",
+      "qttools-everywhere-src-6.12.0__src__assistant__qlitehtml__LICENSES__LicenseRef-Qt-Commercial.txt",
+      "qttools-everywhere-src-6.12.0__src__assistant__qlitehtml__src__3rdparty__litehtml__LICENSE",
+      "qttools-everywhere-src-6.12.0__src__assistant__qlitehtml__src__3rdparty__litehtml__src__gumbo__LICENSE",
+      "qttools-everywhere-src-6.12.0__src__qdoc__catch__LICENSE.CATCH.txt",
+      "qttools-everywhere-src-6.12.0__src__qdoc__qdoc__src__qdoc__clang__AST__LICENSE.LLVM.txt",
+      "qttools-everywhere-src-6.12.0__tests__auto__qtattributionsscanner__testdata__good__local_license__LICENSE.Id1.txt",
+      "qttools-everywhere-src-6.12.0__tests__auto__qtattributionsscanner__testdata__good__local_license__LICENSE.Id2.txt",
+      "qttools-everywhere-src-6.12.0__tests__auto__qtattributionsscanner__testdata__good__variants__COPYRIGHT.txt",
+      "qttools-everywhere-src-6.12.0__tests__auto__qtattributionsscanner__testdata__good__variants__LICENSE.1.txt",
+      "qttools-everywhere-src-6.12.0__tests__auto__qtattributionsscanner__testdata__good__variants__LICENSE.2.txt",
+      "qttools-everywhere-src-6.12.0__tests__manual__qtattributionsscanner__data__LICENSE"
+    ]
+  },
+  {
+    "name": "zstd",
+    "version": "1.5.7_1",
+    "sources": [
+      {
+        "file": "zstd/00-v1.5.7.tar.gz",
+        "url": "https://github.com/facebook/zstd/archive/refs/tags/v1.5.7.tar.gz",
+        "sha256": "37d7284556b20954e56e1ca85b80226768902e2edabd3b649e9e72c0c9012ee3"
+      }
+    ],
+    "notices": [
+      "zstd-1.5.7__COPYING",
+      "zstd-1.5.7__LICENSE",
+      "zstd-1.5.7__build__LICENSE"
+    ]
+  }
+]

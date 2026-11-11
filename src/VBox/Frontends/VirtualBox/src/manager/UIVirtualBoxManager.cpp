@@ -34,6 +34,7 @@
 #include <QFile>
 #include <QFontDatabase>
 #include <QGuiApplication>
+#include <QLocale>
 #include <QMenuBar>
 #include <QProcess>
 #include <QPushButton>
@@ -80,6 +81,9 @@
 #include "UIQObjectStuff.h"
 #include "UITranslationEventListener.h"
 #include "UIVirtualBoxManager.h"
+#ifdef VBOX_WITH_ELSEPORT_UI
+# include "UIElseportPane.h"
+#endif
 #include "UIVirtualBoxWidget.h"
 #include "UIVirtualMachineItemCloud.h"
 #include "UIVirtualMachineItemLocal.h"
@@ -597,6 +601,9 @@ UIVirtualBoxManager::UIVirtualBoxManager()
     , m_fFirstMediumEnumerationHandled(false)
     , m_pActionPool(0)
     , m_pWidget(0)
+#ifdef VBOX_WITH_ELSEPORT_UI
+    , m_pElseportPane(0)
+#endif
     , m_iGeometrySaveTimerId(-1)
     , m_fSnapshotCloneByDefault(false)
     , m_fImportFromOCI(false)
@@ -649,6 +656,10 @@ bool UIVirtualBoxManager::eventFilter(QObject *pObject, QEvent *pEvent)
 
 void UIVirtualBoxManager::sltRetranslateUI()
 {
+#ifdef VBOX_WITH_ELSEPORT_UI
+    setWindowTitle("Elseport");
+    return;
+#endif
     /* Set window title: */
     QString strTitle(VBOX_PRODUCT);
     strTitle += " " + tr("Manager", "Note: main window title which is prepended by the product name.");
@@ -735,6 +746,13 @@ void UIVirtualBoxManager::polishEvent(QShowEvent *)
 
 void UIVirtualBoxManager::closeEvent(QCloseEvent *pEvent)
 {
+#ifdef VBOX_WITH_ELSEPORT_UI
+    if (m_pElseportPane && !m_pElseportPane->canClose())
+    {
+        pEvent->ignore();
+        return;
+    }
+#endif
     /* Call to base-class: */
     QIMainWindow::closeEvent(pEvent);
 
@@ -880,7 +898,11 @@ void UIVirtualBoxManager::sltHandleOpenUrlCall(QList<QUrl> list /* = QList<QUrl>
             }
             else if (UICommon::hasAllowedExtension(strFile, isoExtensionList))
             {
+#ifdef VBOX_WITH_ELSEPORT_UI
+                m_pElseportPane->createComputer(strFile);
+#else
                 openNewMachineWizard(QString() /* means root group */, strFile);
+#endif
             }
         }
     }
@@ -2558,6 +2580,44 @@ void UIVirtualBoxManager::prepareWidgets()
         if (pLastFocusedWidget)
             pLastFocusedWidget->setFocus();
     }
+#ifdef VBOX_WITH_ELSEPORT_UI
+    takeCentralWidget();
+    m_pWidget->setParent(this);
+    m_pWidget->hide();
+    m_pWidget->setEnabled(false);
+    m_pElseportPane = new UIElseportPane(this);
+    setCentralWidget(m_pElseportPane);
+    setMinimumSize(960, 680);
+    resize(1240, 820);
+    setWindowIcon(QIcon(":/elseport/app-icon.png"));
+    connect(m_pElseportPane, &UIElseportPane::sigAdvancedSettings, this,
+            [this](const QUuid &id) { sltOpenSettingsDialog(QString(), QString(), id); });
+    menuBar()->clear();
+    for (QAction *action : m_pActionPool->findChildren<QAction *>())
+    {
+        action->setShortcut(QKeySequence());
+        action->setMenuRole(QAction::NoRole);
+        action->setEnabled(false);
+    }
+    const QString language = gEDataManager->languageId();
+    const bool chinese = language.isEmpty() ? QLocale::system().language() == QLocale::Chinese
+                                            : language.startsWith("zh");
+    QMenu *file = menuBar()->addMenu(chinese ? QString::fromUtf8("文件") : QString("File"));
+    QAction *create = file->addAction(chinese ? QString::fromUtf8("创建虚拟电脑…") : QString("New computer…"));
+    create->setShortcut(QKeySequence::New);
+    connect(create, &QAction::triggered, m_pElseportPane, [this] { m_pElseportPane->createComputer(); });
+    QAction *close = file->addAction(chinese ? QString::fromUtf8("关闭") : QString("Close"));
+    close->setShortcut(QKeySequence::Close);
+    connect(close, &QAction::triggered, this, &QWidget::close);
+    QAction *about = file->addAction(chinese ? QString::fromUtf8("关于 Elseport") : QString("About Elseport"));
+    about->setMenuRole(QAction::AboutRole);
+    connect(about, &QAction::triggered, m_pElseportPane, &UIElseportPane::showAbout);
+    QAction *quit = file->addAction(chinese ? QString::fromUtf8("退出 Elseport") : QString("Quit Elseport"));
+    quit->setMenuRole(QAction::QuitRole);
+    quit->setShortcut(QKeySequence::Quit);
+    connect(quit, &QAction::triggered, this, &QWidget::close);
+#endif
+
 }
 
 void UIVirtualBoxManager::prepareConnections()
@@ -2809,7 +2869,15 @@ void UIVirtualBoxManager::loadSettings()
 {
     /* Load window geometry: */
     {
-        const QRect geo = gEDataManager->selectorWindowGeometry(this);
+        QRect geo = gEDataManager->selectorWindowGeometry(this);
+#ifdef VBOX_WITH_ELSEPORT_UI
+        if (gEDataManager->extraDataString("GUI/LastWindowPosition").isEmpty())
+        {
+            const QPoint center = geo.center();
+            geo.setSize(QSize(1240, 820));
+            geo.moveCenter(center);
+        }
+#endif
         LogRel2(("GUI: UIVirtualBoxManager: Restoring geometry to: Origin=%dx%d, Size=%dx%d\n",
                  geo.x(), geo.y(), geo.width(), geo.height()));
         restoreGeometry(geo);
@@ -3628,6 +3696,10 @@ void UIVirtualBoxManager::updateActionsVisibility()
 
 void UIVirtualBoxManager::updateActionsAppearance()
 {
+#ifdef VBOX_WITH_ELSEPORT_UI
+    if (m_pElseportPane)
+        return;
+#endif
     /* Get current items: */
     QList<UIVirtualMachineItem*> items = currentItems();
 

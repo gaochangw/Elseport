@@ -51,6 +51,9 @@ class UIActionPool;
 class UINativeWizard;
 struct UIUnattendedInstallData;
 class UIVirtualBoxWidget;
+#ifdef VBOX_WITH_ELSEPORT_UI
+class UIElseportPane;
+#endif
 class UIVirtualMachineItem;
 class CCloudMachine;
 class CUnattended;
@@ -526,6 +529,10 @@ private:
 
     /** Holds the central-widget instance. */
     UIVirtualBoxWidget *m_pWidget;
+#ifdef VBOX_WITH_ELSEPORT_UI
+    /** Native workspace surface; the legacy widget only backs advanced dialogs. */
+    UIElseportPane *m_pElseportPane;
+#endif
 
     /** Holds the geometry save timer ID. */
     int  m_iGeometrySaveTimerId;

@@ -12,6 +12,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef ELSEPORT_PROFILE_NAME
+# define ELSEPORT_PROFILE_NAME "Elseport-Development"
+#endif
+#ifndef ELSEPORT_IPC_NAME
+# define ELSEPORT_IPC_NAME "elseport-development"
+#endif
+
 static int elseportSetDefault(const char *pszName, const char *pszValue)
 {
     const char *pszCurrent = getenv(pszName);
@@ -41,10 +48,10 @@ int main(int argc, char **argv)
     const char *pszHome = getenv("HOME");
     if (!pszHome || *pszHome != '/')
         return 1;
-    cch = snprintf(szValue, sizeof(szValue), "%s/Library/Application Support/Elseport-Development", pszHome);
+    cch = snprintf(szValue, sizeof(szValue), "%s/Library/Application Support/" ELSEPORT_PROFILE_NAME, pszHome);
     if (   cch < 0 || (size_t)cch >= sizeof(szValue)
         || elseportSetDefault("VBOX_USER_HOME", szValue)
-        || elseportSetDefault("VBOX_IPC_SOCKETID", "elseport-development"))
+        || elseportSetDefault("VBOX_IPC_SOCKETID", ELSEPORT_IPC_NAME))
         return 1;
     cch = snprintf(szPath, sizeof(szPath), "%s/VirtualBox", szResolved);
     if (cch < 0 || (size_t)cch >= sizeof(szPath))

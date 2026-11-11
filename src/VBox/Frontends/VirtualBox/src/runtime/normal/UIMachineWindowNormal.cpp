@@ -27,6 +27,10 @@
 
 /* Qt includes: */
 #include <QMenuBar>
+#ifdef VBOX_WITH_ELSEPORT_UI
+# include <QToolBar>
+# include <QLocale>
+#endif
 #include <QTimerEvent>
 #include <QContextMenuEvent>
 #include <QResizeEvent>
@@ -269,6 +273,49 @@ void UIMachineWindowNormal::prepareVisualState()
 {
     /* Call to base-class: */
     UIMachineWindow::prepareVisualState();
+#ifdef VBOX_WITH_ELSEPORT_UI
+    if (m_uScreenId == 0 && !findChild<QToolBar *>("ElseportRuntimeToolbar"))
+    {
+        const QString language = gEDataManager->languageId();
+        const bool chinese = language.isEmpty() ? QLocale::system().language() == QLocale::Chinese
+                                                : language.startsWith("zh");
+        QToolBar *toolbar = new QToolBar(QStringLiteral("Elseport"), this);
+        toolbar->setObjectName("ElseportRuntimeToolbar");
+        toolbar->setMovable(false);
+        toolbar->setFloatable(false);
+        toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        toolbar->setIconSize(QSize(18, 18));
+        toolbar->setStyleSheet("QToolBar{background:#faf9fc;border:0;border-bottom:1px solid #e5e3ed;spacing:8px;padding:5px;}"
+                              "QToolButton{color:#37334d;padding:6px 10px;border-radius:6px;}"
+                              "QToolButton:hover{background:#edeafa;}");
+        const auto addControl = [this, toolbar](int index, const QString &title, const char *name)
+        {
+            QAction *original = actionPool()->action(index);
+            QAction *action = toolbar->addAction(original->icon(), title);
+            action->setObjectName(QString::fromLatin1(name));
+            action->setEnabled(original->isEnabled());
+            connect(original, &QAction::changed, action, [original, action] { action->setEnabled(original->isEnabled()); });
+            connect(action, &QAction::triggered, original, &QAction::trigger);
+            return action;
+        };
+        QAction *pause = addControl(UIActionIndexRT_M_Machine_T_Pause,
+                                   chinese ? QString::fromUtf8("暂停") : QString("Pause"), "ElseportRuntimePause");
+        connect(uimachine(), &UIMachine::sigMachineStateChange, pause, [this, pause, chinese]
+        {
+            pause->setText(uimachine()->isPaused() ? (chinese ? QString::fromUtf8("继续") : QString("Resume"))
+                                                 : (chinese ? QString::fromUtf8("暂停") : QString("Pause")));
+        });
+        addControl(UIActionIndexRT_M_Machine_S_SaveState,
+                   chinese ? QString::fromUtf8("保存并关闭") : QString("Save and close"), "ElseportRuntimeSave");
+        addControl(UIActionIndexRT_M_Machine_S_Shutdown,
+                   chinese ? QString::fromUtf8("关机") : QString("Shut down"), "ElseportRuntimeShutdown");
+        toolbar->addSeparator();
+        addControl(UIActionIndexRT_M_View_T_Fullscreen,
+                   chinese ? QString::fromUtf8("全屏") : QString("Full screen"), "ElseportRuntimeFullscreen");
+        addToolBar(Qt::TopToolBarArea, toolbar);
+    }
+#endif
+
 
 #ifdef VBOX_GUI_WITH_CUSTOMIZATIONS1
     /* Customer request: The background has to go black: */

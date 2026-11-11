@@ -1,49 +1,89 @@
-# Source publication and optional binary releases
+# Installing the macOS preview
 
-The current deliverable is a public source repository with English and Chinese
-README files. An App Store release, Developer ID identity and notarization are
-not prerequisites for this source-only scope.
+The first binary preview targets Apple Silicon Macs, macOS 27.0 or later,
+and Linux Arm64 guests. The validated host is an Apple M2 running macOS
+27.0.1; the validated guest is Ubuntu 26.04.1 Arm64. This is an alpha release
+with software graphics, not a production-supported distribution.
 
-## Source publication
+## Install and open
 
-- [x] Elseport name and editable brand assets prepared.
-- [x] README files distinguish the design prototype from the existing frontend.
-- [x] Origin, modification notice and license entry points retained.
-- [x] Build instructions and dependency notes prepared.
-- [x] Private security contact designated in SECURITY.md.
-- [x] Integration documentation states tested configurations and limitations.
-- [ ] Review the exact publication diff and its source manifest.
-- [ ] Exclude private experiments, test credentials, VM disks, installation
-      media, internal evidence and local configuration.
-- [ ] Confirm that no private platform-specific additions enter the public diff.
-- [ ] Validate the selected source tree, then record the public revision.
+1. Download the macOS Arm64 DMG and `SHA256SUMS` from the same GitHub release.
+   Compare the output of `shasum -a 256 <downloaded-file.dmg>` with its entry.
+2. Open the disk image and drag **Elseport.app** to Applications.
+3. Open Elseport and create a new computer. The application uses its own
+   configuration directory and does not import an existing installation.
+4. Keep at least 20 GB free for a new Ubuntu installation. Clipboard and shared
+   folders remain disabled until you explicitly enable them.
 
-Keep existing upstream platform support and license notices. Publish only the
-reviewed changes; do not push a working directory containing private work as a
-single unchecked patch. Report possible vulnerabilities privately before
-publishing their details.
+The preview is **ad-hoc signed, not Developer ID signed, and not notarized**.
+A downloaded copy may be blocked by macOS. If you choose to trust this release
+after checking its source and checksum, Apple's per-app approval is in
+**System Settings → Privacy & Security → Security → Open / Open Anyway** after
+an attempted launch. Consult [Apple's current instructions](https://support.apple.com/en-us/102445).
+Managed Macs may not permit this approval. The installer does not disable
+Gatekeeper or change system-wide security settings.
 
-## Optional development packages
+Local installation testing covers mounting the DMG, copying the app, starting
+it from the installed location and using dedicated Linux computers. It does
+not establish that a downloaded, quarantined copy will open without approval
+on another Mac. Physical input devices, accessibility, external monitors and
+host sleep/wake need additional manual coverage.
 
-The local packaging helper makes a relocatable development bundle and signs it
-ad hoc for local testing. Its dependency manifest and checksums describe that
-particular bundle, not the entire source project. It keeps development settings
-separate from an existing upstream installation.
+## Data locations
 
-Record the source revision and patch set, host and guest versions, dependency
-versions, build options, packaging manifest and validation results. Exclude test
-helpers and installation media. A successful local launch does not establish
-compatibility on other machines.
+The release launcher uses `~/Library/Application Support/Elseport` for its
+configuration, with a separate service identifier. Computers created from a
+fresh profile are stored under its `Computers` directory. The Ubuntu cache is
+inside the profile's `Cache` directory. Removing the app does not delete these
+computers or their files.
 
-## If public binary downloads are added later
+Automatic installation temporarily generates private setup media in the new
+computer's directory. After the installed guest confirms that its integration
+service has started, the application ejects its own setup media and removes
+the generated files. A canceled download can be resumed; external ISO files
+selected by the user are retained.
 
-Prepare the exact corresponding source and complete third-party license
-inventory beside each binary. Define supported versions and maintenance scope.
-Validate installation, relocation, launch, shutdown and guest integration on
-clean machines. Evaluate the appropriate Apple signing and notarization process
-for that distribution route. Those are future binary-release tasks, not blockers
-for the current source repository.
+## Release contents
 
-Tests must cover sharing disabled, selected paths, malformed input,
-cancellation and isolation between VMs. Test the real clipboard only after the
-owner explicitly authorizes replacing its contents.
+Each binary release must include:
+
+- The versioned macOS Arm64 DMG and Linux-only integration ISO.
+- Exact project source, including the pinned kBuild source and build scripts.
+- Dependency source archives, original build recipes, patches and notices.
+- A bundle inventory, source/build record and `SHA256SUMS`.
+
+Source, system and licensing notes are in [BUILDING.md](BUILDING.md),
+[DEPENDENCIES.md](DEPENDENCIES.md), [COPYING](../../COPYING) and
+[NOTICE](../../NOTICE). No proprietary Extension Pack is distributed.
+
+## Maintainer verification
+
+Before publishing a new binary:
+
+1. Build from the reviewed public source with a clean working tree. Keep
+   private experiments, credentials, virtual disks and local configuration out.
+2. Build Linux Guest Additions from that source, inspect its license contents,
+   and exercise installation in a dedicated guest.
+3. Test native creation, cancellation, lifecycle, settings and restore points.
+   Check sharing defaults and removal of generated installation credentials.
+4. Package a copy, audit all non-system dependencies and signatures, mount the
+   DMG, install it locally and test the installed copy with a dedicated profile.
+5. Provide matching source and notices, generate checksums, upload the release
+   assets, and verify the published assets against the local hashes.
+
+Do not rebuild host libraries while a test VM is using them. Tests must use
+isolated profiles and computers. Only replace the real system clipboard when
+its owner has explicitly authorized that test. Report potential vulnerabilities
+through [SECURITY.md](../../SECURITY.md), not public release notes or issues.
+
+## 中文安装提示
+
+下载同一 Release 中的 Arm64 DMG 和校验文件，核对 SHA-256 后打开映像，
+将 Elseport.app 拖入 Applications。本预览版使用本地签名、未公证；
+macOS 可能阻止打开。确认信任该版本后，可按上面的 Apple 官方说明，
+在“系统设置 → 隐私与安全性”中仅为这个应用批准打开。
+安装程序不会关闭系统级安全检查。
+
+应用使用独立配置，卸载应用不会自动删除虚拟电脑。建议为 Ubuntu 安装
+预留至少 20 GB；共享功能默认关闭。本版只验证了 Apple M2、macOS 27.0.1
+和 Ubuntu 26.04.1 Arm64，其他环境、外接显示器、辅助功能与睡眠唤醒仍需验证。

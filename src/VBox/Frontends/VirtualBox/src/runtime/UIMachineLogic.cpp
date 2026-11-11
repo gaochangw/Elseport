@@ -62,6 +62,9 @@
 #include "UILoggingDefs.h"
 #include "UIMachine.h"
 #include "UIMachineLogic.h"
+#ifdef VBOX_WITH_ELSEPORT_UI
+# include "UIElseportIntegration.h"
+#endif
 #include "UIMachineLogicFullscreen.h"
 #include "UIMachineLogicNormal.h"
 #include "UIMachineLogicSeamless.h"
@@ -196,6 +199,29 @@ void UIMachineLogic::destroy(UIMachineLogic *&pLogic)
 
 void UIMachineLogic::prepare()
 {
+#ifdef VBOX_WITH_ELSEPORT_UI
+    connect(uimachine(), &UIMachine::sigGuestPropertyChange, this,
+            [this](const QString &name, const QString &)
+            {
+                if (name == "/Elseport/InstallComplete")
+                    checkUnattendedLeftOvers();
+            });
+    /* Retry while setup is pending, including when the manager is closed or
+     * the completion event arrives before a medium's last read lock clears. */
+    QTimer *pCleanupTimer = new QTimer(this);
+    connect(pCleanupTimer, &QTimer::timeout, this,
+            [pCleanupTimer]()
+            {
+                CMachine machine = gpGlobalSession->virtualBox().FindMachine(uiCommon().managedVMUuid().toString());
+                if (!machine.isNull() && uiElseportCleanupInstallation(machine))
+                {
+                    pCleanupTimer->stop();
+                    pCleanupTimer->deleteLater();
+                }
+            });
+    pCleanupTimer->start(2000);
+#endif
+
     /* Prepare required features: */
     prepareRequiredFeatures();
 
@@ -3088,6 +3114,15 @@ void UIMachineLogic::reset(bool fShowConfirmation)
 
 void UIMachineLogic::checkUnattendedLeftOvers()
 {
+#ifdef VBOX_WITH_ELSEPORT_UI
+    if (uimachine() && uimachine()->uisession()
+        && uimachine()->uisession()->machine().GetExtraData("Elseport/Created") == "true")
+    {
+        CMachine machine = uimachine()->uisession()->machine();
+        uiElseportCleanupInstallation(machine);
+        return;
+    }
+#endif
     if (!uimachine() || !uimachine()->uisession())
         return;
     QString strDialogName = gpConverter->toInternalString(UIExtraDataMetaDefs::DialogType_UnattendedCleanup);

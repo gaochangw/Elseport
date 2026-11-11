@@ -37,11 +37,7 @@ autoinstall:
 # @@VBOX_COND_END@@
 
   user-data:
-@@VBOX_COND_IS_RTC_USING_UTC@@
-    timezone: Etc/UTC
-@@VBOX_COND_ELSE@@
     timezone: @@VBOX_INSERT_TIME_ZONE_UX@@
-@@VBOX_COND_END@@
     ntp:
 @@VBOX_COND_IS_INSTALLING_ADDITIONS@@
       enabled: false

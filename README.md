@@ -1,82 +1,75 @@
 # Elseport
 
-An independent desktop virtualisation project for Apple Silicon Macs, built
-from the open-source code of VirtualBox.
+**Linux workspaces for your Mac.**
 
-[简体中文](README.zh-CN.md) · [Build](doc/elseport/BUILDING.md) · [Security](SECURITY.md)
+Elseport is an independent desktop virtualisation project for Apple Silicon,
+built from the open-source code of VirtualBox. Create an Ubuntu computer, open
+its desktop, and pick up where you left off through a native macOS interface.
 
-![Elseport interface design in English, light appearance](doc/design/previews/readme-light-en.png)
+[简体中文](README.zh-CN.md) · [Download preview](https://github.com/gaochangw/Elseport/releases) · [Build](doc/elseport/BUILDING.md) · [Security](SECURITY.md)
 
-*Light interface design preview. This interface has not yet replaced the existing frontend.*
+![Elseport native interface in English, light appearance](doc/elseport/previews/native-en.png)
 
-## Development status
+*The native application, showing a real Linux computer. Light appearance only.*
 
-This is a source-first open-source project; no public binary is designated as
-supported. Current work covers guided
-setup, desktop integration and the new interface. Claims below are limited to
-the configurations actually tested.
+## Try the preview
 
-| Area | Status |
-| --- | --- |
-| Guided Ubuntu installation | Validated in the local development branch; the guided installer is not included in this initial public source snapshot |
-| Computer lifecycle | Start, stop, pause, save and resume exercised with dedicated test machines |
-| Shared folders | Available through the existing backend; share only explicitly selected folders |
-| New interface | Interactive English/Chinese, light/dark prototype; not integrated |
-| File clipboard | Files and directories passed both directions between macOS and an isolated Linux X11 clipboard; see the [scope and limits](doc/elseport/INTEGRATION.md) |
-| Retina | Automatic 200% GNOME desktop scale with native pixels verified in the single-monitor test configuration |
-| Drag and drop | macOS preparation and conversion implemented; Finder interoperability still needs manual validation |
-| Linux 3D | Basic drawing and pixel checks passed with source-built Guest Additions; off by default, with application and game compatibility unverified |
-| Distribution | Source and build instructions; local development packaging is optional |
+The first preview targets **Apple Silicon Macs with macOS 27.0 or later** and
+Linux Arm64 guests. It has been tested on Apple M2 with macOS 27.0.1 and Ubuntu
+26.04.1 Arm64. Other configurations need their own validation.
 
-## Requirements
+1. Download the macOS Arm64 disk image from [Releases](https://github.com/gaochangw/Elseport/releases).
+2. Open the image and copy **Elseport.app** into Applications.
+3. Open Elseport, choose **New computer**, and create an Ubuntu account.
+   Leave the image field empty to download and verify Ubuntu automatically,
+   or select a Linux Arm64 ISO you already have.
 
-The development baseline is an Apple M2 running macOS 27.0.1. Guest examples
-use Ubuntu 26.04.1 Arm64. Other hardware and OS versions need their own
-validation. This project does not provide a different-architecture system
-emulator.
+Keep at least 20 GB of free space for a new Ubuntu installation. The default
+virtual disk grows as it is used; its 64 GB limit is not allocated up front.
+Automatic setup needs an internet connection for Ubuntu packages and updates.
 
-The current bundled development build requires macOS 27.0 or later because
-of its Qt dependencies. Only macOS 27.0.1 has been tested.
+This is an **alpha preview**, signed ad hoc and **not notarized**. macOS may
+block a downloaded copy; see the [installation and release notes](doc/elseport/RELEASE.md).
+It is not an App Store build or a production-supported distribution.
 
-Source builds require Apple development tools, kBuild, Qt and the dependencies
-in the [build guide](doc/elseport/BUILDING.md). The 3D path needs an additional
-toolchain. A development build is not a supported installation package.
+## What works
 
-## Try the design
+- A native English/Chinese interface with your computers, live desktop previews
+  and real power states.
+- Guided Ubuntu installation with a checked download, a chosen account and
+  bundled Linux integration tools. Other Linux Arm64 images can be installed
+  manually.
+- Start, pause, resume, save and close, normal shutdown and restore points.
+- Memory and processor settings, display scaling and an explicitly selected
+  shared folder. Clipboard and folder sharing start disabled; shared folders
+  are read-only unless you allow changes.
 
-This preview is local and does not create or control virtual computers:
+Read the [native interface guide](doc/elseport/NATIVE-UI.md) and
+[validation record](doc/elseport/VALIDATION.md) for the tested scope. Settings
+are stored separately from an existing VirtualBox installation; the preview
+does not import existing computers automatically.
 
-```sh
-python3 -m http.server 8765 --bind 127.0.0.1 --directory doc/design
-```
+## Current limits
 
-Open `http://127.0.0.1:8765/?lang=en` and use example data only. See the
-[design specification](doc/design/DESIGN.md) and
-[prototype validation](doc/design/VALIDATION.md).
+- This build uses software graphics. Application and game 3D compatibility is
+  not supported by this preview.
+- File clipboard requires an X11 guest desktop; native Wayland file transfer
+  is not supported. See [desktop integration](doc/elseport/INTEGRATION.md).
+- External displays, accessibility tools, host sleep/wake and physical input
+  devices need more hands-on testing.
+- Restart Elseport after changing the interface language.
+- The proprietary Extension Pack is not included or required.
 
-## Build and test
+## Source and development
 
-Follow [BUILDING.md](doc/elseport/BUILDING.md). Keep development configuration
-and test machines separate from an existing installation. Helpers do not
-install system dependencies or change the selected developer-tool directory.
-The [validation record](doc/elseport/VALIDATION.md) lists completed checks and
-remaining manual coverage.
+Follow [BUILDING.md](doc/elseport/BUILDING.md) for the macOS host, Linux Guest
+Additions and packaging workflow. Each binary release includes the matching
+project source, dependency source archives and checksums. The
+[dependency notes](doc/elseport/DEPENDENCIES.md) describe their scope.
 
-The [release checklist](doc/elseport/RELEASE.md) records the conditions for
-distribution. A generated development disk image is an internal test artifact.
-
-## Known limits
-
-- The new interface and branding are not fully integrated.
-- Wayland file clipboard, external displays and application-level graphics
-  compatibility need further work or validation.
-- The Ubuntu installer currently uses upstream Guest Additions 7.2.22.
-- Real keyboard input, accessibility tools, external displays and sleep/wake
-  need hands-on testing.
-- Source publication does not require an App Store release or Apple signing
-  identity. Public binary downloads would need their own packaging, licensing
-  and platform validation.
-- The proprietary Extension Pack is not included or required by this scope.
+The earlier [interactive design prototype](doc/design/DESIGN.md) remains a
+local design reference. The application uses Qt Widgets and the existing
+virtual-machine API; it does not embed the HTML prototype.
 
 ## Origin and license
 

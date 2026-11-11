@@ -59,7 +59,7 @@ def dependencies(path):
             if line.strip() and line.strip().split(' (compatibility')[0] != identity]
 
 
-def deploy_dependencies(app, original, qt_prefix):
+def deploy_dependencies(app, original, qt_prefix, minimal=False):
     frameworks = app / 'Contents/Frameworks'
     plugins = app / 'Contents/PlugIns'
     frameworks.mkdir(exist_ok=True)
@@ -123,6 +123,11 @@ def deploy_dependencies(app, original, qt_prefix):
         source_dir = qt_prefix / 'plugins' / category
         if source_dir.is_dir():
             for source in source_dir.glob('*.dylib'):
+                if minimal and source.name not in {
+                    'libqcocoa.dylib', 'libqjpeg.dylib', 'libqsvg.dylib',
+                    'libqsvgicon.dylib', 'libqmacstyle.dylib',
+                }:
+                    continue
                 target = plugins / category / source.name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, target)
@@ -162,7 +167,7 @@ def deploy_dependencies(app, original, qt_prefix):
         directory = nested / 'Contents/Resources'
         directory.mkdir(exist_ok=True)
         (directory / 'qt.conf').write_text('[Paths]\nPlugins=../../../PlugIns\n')
-    return len(processed)
+    return origins
 
 
 def audit_bundle(app):
@@ -257,7 +262,21 @@ def main():
     parser.add_argument('--qt-prefix', type=Path, default=root / 'prebuild/qt6')
     parser.add_argument('--entitlements', type=Path, default=root / 'out/darwin.arm64/release/EntitlementsVM.plist')
     parser.add_argument('--audit-only', type=Path)
+    parser.add_argument('--preview-version', help='Assemble a source-matched public preview instead of an internal build')
+    parser.add_argument('--linux-additions', type=Path, help='Linux-only Guest Additions ISO for the preview')
+    parser.add_argument('--third-party-notices', type=Path, help='Verified component license directory')
     args = parser.parse_args()
+    preview = args.preview_version
+    if preview:
+        import re
+        if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?', preview):
+            parser.error('Invalid preview version.')
+        if not args.linux_additions or not args.linux_additions.is_file():
+            parser.error('A Linux-only Guest Additions ISO is required.')
+        if not args.third_party_notices or not args.third_party_notices.is_dir():
+            parser.error('Component license notices are required for a public preview.')
+        if subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=normal'], cwd=root).strip():
+            parser.error('Commit the exact source snapshot before packaging a public preview.')
     if sys.platform != 'darwin':
         parser.error('This packaging tool requires macOS.')
     if args.audit_only:
@@ -271,7 +290,7 @@ def main():
     work = Path(tempfile.mkdtemp(prefix='development-', dir=args.output.resolve()))
     stage = work / 'image'
     stage.mkdir()
-    app = stage / 'Elseport Development.app'
+    app = stage / ('Elseport.app' if preview else 'Elseport Development.app')
     shutil.copytree(args.app, app, symlinks=True, ignore=ignore_development_files)
     # Development snapshots must not claim an existing installation's file types.
     for info in [app / 'Contents/Info.plist', *(app / 'Contents/Resources').glob('*.app/Contents/Info.plist')]:
@@ -289,17 +308,31 @@ def main():
     plist_path = contents / 'Info.plist'
     with plist_path.open('rb') as stream:
         plist = plistlib.load(stream)
-    plist.update(CFBundleName='Elseport Development',
-                 CFBundleDisplayName='Elseport Development', CFBundleIdentifier='org.elseport.development',
+    plist.update(CFBundleName='Elseport' if preview else 'Elseport Development',
+                 CFBundleDisplayName='Elseport' if preview else 'Elseport Development',
+                 CFBundleIdentifier='org.elseport.desktop' if preview else 'org.elseport.development',
                  CFBundleIconFile='Elseport.icns')
     with plist_path.open('wb') as stream:
         plistlib.dump(plist, stream)
     shutil.copy2(root / 'brand/Elseport.icns', contents / 'Resources/Elseport.icns')
 
-    deploy_dependencies(app, args.app.resolve(), args.qt_prefix.resolve())
+    if preview:
+        plist['CFBundleShortVersionString'] = preview.split('-')[0]
+        plist['CFBundleVersion'] = preview.split('-')[0]
+    if args.linux_additions:
+        shutil.copy2(args.linux_additions, contents / 'Resources/ElseportLinuxAdditions.iso')
+    license_dir = contents / 'Resources/Licenses'
+    license_dir.mkdir(exist_ok=True)
+    for name in ('COPYING', 'LICENSE.txt', 'NOTICE'):
+        shutil.copy2(root / name, license_dir / name)
+    if args.third_party_notices:
+        shutil.copytree(args.third_party_notices, license_dir / 'third-party', dirs_exist_ok=True)
+    origins = deploy_dependencies(app, args.app.resolve(), args.qt_prefix.resolve(), minimal=bool(preview))
+    (work / 'dependency-origins.json').write_text(json.dumps({str(k.relative_to(app)): str(v) for k, v in origins.items()}, indent=2) + '\n')
     compiler = subprocess.check_output(['/usr/bin/xcrun', '--find', 'clang'], text=True).strip()
     sdk = subprocess.check_output(['/usr/bin/xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
-    subprocess.run([compiler, '-Os', '-Wall', '-Wextra', '-Werror', '-arch', 'arm64',
+    definitions = ['-DELSEPORT_PROFILE_NAME="Elseport"', '-DELSEPORT_IPC_NAME="elseport"'] if preview else []
+    subprocess.run([compiler, *definitions, '-Os', '-Wall', '-Wextra', '-Werror', '-arch', 'arm64',
                     '-mmacosx-version-min=11.0', '-isysroot', sdk,
                     str(root / 'tools/elseport/development-launcher.c'), '-o', str(launcher)], check=True)
     # Keep dependency discovery rooted at the original executable until deployment
@@ -324,28 +357,45 @@ def main():
         'base_revision': revision,
         'tracked_diff_sha256_at_packaging': hashlib.sha256(difference).hexdigest(),
         'minimum_macos': plist['LSMinimumSystemVersion'],
-        'distribution': 'internal-development',
+        'distribution': 'public-preview' if preview else 'internal-development',
+        'preview_version': preview,
         'signature': 'ad-hoc',
         'notarized': False,
-        'source_release_prepared': False,
+        'source_tree_clean': not bool(difference),
     }, indent=2) + '\n')
     readme = '''Elseport development build
 
 This is an internal, ad-hoc-signed test build, not a notarized public release.
-The existing frontend is included; the new Elseport interface is still a design prototype.
+The native Elseport interface is included on Apple Silicon.
 This image is not prepared for public distribution; release-scope, source, licensing and security work remain.
 The launcher uses a separate Elseport-Development configuration directory and IPC identifier.
 This development bundle does not register virtual-machine file associations; open computers from the manager.
 For tests, override VBOX_USER_HOME with the repository's prebuild/vbox-home directory.
 '''
+    if preview:
+        readme = f"""Elseport {preview} — macOS Apple Silicon preview
+
+Drag Elseport.app to Applications. This is an open-source preview signed ad hoc,
+not with Developer ID, and it is not notarized. The source and dependency source
+archives are provided with the GitHub release. Check the published SHA-256 values.
+Only the macOS/Linux configuration has been validated; native Wayland file
+clipboard and application/game 3D are not supported in this preview.
+The app uses its own Elseport configuration directory. It does not import an
+existing VirtualBox installation automatically.
+
+将 Elseport.app 拖入 Applications。这是开源预览版，使用本地签名，未进行公证。
+对应源码、依赖源码与 SHA-256 校验值随 GitHub Release 提供。
+本版验证范围为 macOS/Linux；不支持原生 Wayland 文件剪贴板或应用/游戏 3D。
+使用独立的 Elseport 配置目录，不会自动导入已有 VirtualBox 配置。
+"""
     (stage / 'READ-ME.txt').write_text(readme)
     for name in ('COPYING', 'LICENSE.txt', 'NOTICE'):
         if (root / name).is_file():
             shutil.copy2(root / name, stage / name)
     (stage / 'Applications').symlink_to('/Applications')
-    image = work / 'Elseport-Development.dmg'
+    image = work / (f'Elseport-{preview}-macos-arm64.dmg' if preview else 'Elseport-Development.dmg')
     subprocess.run(['/usr/bin/hdiutil', 'create', '-fs', 'HFS+', '-format', 'UDZO', '-volname',
-                    'Elseport Development', '-srcfolder', str(stage), str(image)], check=True)
+                    'Elseport' if preview else 'Elseport Development', '-srcfolder', str(stage), str(image)], check=True)
     print(json.dumps({'image': str(image), 'bundle': str(app), 'macho_files': len(inventory),
                       'signature': 'ad-hoc', 'notarized': False}, indent=2))
     return 0
